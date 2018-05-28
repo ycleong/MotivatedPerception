@@ -1,0 +1,77 @@
+<style>div.comment {color:blue}</style>
+---
+title: "Low Bias NAcc Timecourse"
+output: html_document
+---
+
+```{r set-up, warning=FALSE, message=FALSE, results="hide"}
+# Clear workspace
+rm(list = ls())
+
+# Load helper functions
+source('helper_functions.R')
+
+# Import libraries
+packages = c("tidyr","dplyr","ggplot2","lme4","lmerTest","Hmisc","car","lmtest","Rarity","cowplot")
+ipak(packages)
+
+# Redo long calculations
+redo_calc = 0;
+```
+
+```{r load-data}
+# Read data
+AllData = read.csv("../data/AllData.csv")
+
+# Convert to factors
+AllData$Sub = as.factor(AllData$Sub)
+AllData$Pred = as.factor(AllData$Pred)
+AllData$Want2See = as.factor(AllData$Want2See)
+AllData$Con_Rev = factor(AllData$Con, levels = c('Coop','Comp'))
+
+# Load stats
+load("long_calc/ConditionxBet.Rda")
+```
+
+```{r warning=F}
+# Extract random slope of the interaction
+intSlope = unlist(coef(res)$Sub$`ConCoop:Pred1`)
+
+# Create datafrom for each subjec'ts bias, and order in descending order
+SubBias = as.data.frame(intSlope)
+SubBias$Sub = unique(AllData$Sub)
+SubBias = SubBias[order(-SubBias$intSlope),]
+
+SubBias$medianBehav = SubBias$intSlope > median(SubBias$intSlope)
+```
+
+```{r fig.width = 8, fig.height = 4}
+# Read NAcc time course
+NAcc_tc = read.csv('../data/NAcc_timecourse.csv')
+NAcc_tc$Sub = as.factor(NAcc_tc$Sub)
+NAcc_tc$MotCon = as.factor(NAcc_tc$MotCon)
+NAcc_tc = left_join(NAcc_tc,SubBias)
+
+NAcc_tc_summary = group_by(NAcc_tc,MotCon,Time,medianBehav) %>%
+  summarise(meanActivity = mean(Activity), se = sem(Activity))
+
+NAcc_tc_summary$Time = NAcc_tc_summary$Time * 2
+
+ggplot(subset(NAcc_tc_summary, medianBehav == FALSE), 
+                      aes(x=Time, y=meanActivity, linetype=MotCon)) +
+  geom_line(size = 1.5) +
+    theme(legend.position="none",
+          axis.text.x  = element_text(size=14,color="black"),
+      axis.text.y  = element_text(size=14,color="black"),
+      axis.title.x = element_text(size=14),
+      axis.title.y = element_text(size=14),
+      strip.text.x = element_blank()) +
+  geom_errorbar(aes(ymin=meanActivity-se, ymax=meanActivity+se), width=.3) +
+  coord_cartesian(ylim=c(-0.12, 0.20)) +
+  scale_x_continuous(breaks=seq(-8,8,2)) +
+  xlab("Time (s)") + ylab("NAcc Activity (z)")
+
+```
+
+**NAcc activity was not significantly different between Motivation Consistent trials and Motivation Inconsistent trials for Low Bias participants**. NAcc timecourse of Low Bias participants time-locked to image onset, corrected for hemodynamic lag by shifting the BOLD data by 4 seconds. The trial starts with the “Waiting for Teammate/Opponent” screen at -6s. The teammate or opponent makes a bet at -4s, which remains on the screen for 4s. The image is presented at 0s and stays on screen for 4s. Solid lines: Motivation Consistent trials. Dashed lines: Motivation Inconsistent trials.
+

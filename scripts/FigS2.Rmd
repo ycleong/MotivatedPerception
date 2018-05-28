@@ -1,0 +1,145 @@
+<style>div.comment {color:blue}</style>
+---
+title: "RT and Confidence Analysis"
+output: html_document
+---
+
+```{r set-up, warning=FALSE, message=FALSE, results="hide"}
+# Clear workspace
+rm(list = ls())
+
+# Load helper functions
+source('helper_functions.R')
+
+# Import libraries
+packages = c("tidyr","dplyr","ggplot2","lme4","lmerTest","Hmisc","car","lmtest","Rarity","cowplot")
+ipak(packages)
+
+# Redo long calculations
+redo_calc = 0;
+```
+
+### Load Data
+```{r load-data}
+# Read data
+AllData = read.csv("../data/AllData.csv")
+
+# Convert to factors
+AllData$Sub = as.factor(AllData$Sub)
+AllData$Pred = as.factor(AllData$Pred)
+AllData$Want2See = as.factor(AllData$Want2See)
+AllData$Con_Rev = factor(AllData$Con, levels = c('Coop','Comp'))
+AllData_ValidTrials = filter(AllData, !(is.na(Choice)))
+
+# Load psychometric results (see Fig. 2 code)
+load("long_calc/ConditionxBet.Rda")
+```
+
+```{r warning=F}
+AllData$Conf = as.numeric(as.character(AllData$Conf))
+AllData$RT = as.numeric(as.character(AllData$RT))
+AllData$CatDiff = abs(50 - AllData$Cat_n)*2
+
+if (redo_calc){
+
+# Confidence data
+res.conf = lmer(Conf ~ MotCon + CatDiff + (MotCon + CatDiff |Sub), AllData)
+
+# RT data
+res.rt = lmer(log(RT) ~ MotCon + CatDiff + (MotCon + CatDiff |Sub), AllData)
+
+save(res.conf, res.rt, file="long_calc/RTConfidence.Rda")
+
+}else{
+    
+  load("long_calc/RTConfidence.Rda")
+}
+
+# Confidence Analysis
+summary(res.conf)
+
+# RT analysis
+summary(res.rt)
+```
+
+### RT and Confidence plots
+```{r fig.width = 8.5, fig.height = 6.5, warning=F, echo = F, eval = T}
+suppPalette = c( "#009E73","#D55E00")
+
+# Summarize confidence
+summConf= subset(AllData, !is.na(Conf)) %>%
+  group_by(Sub, MotCon, CatDiff) %>%
+  summarise(Conf = mean(Conf))
+  
+# Plot Confidence 
+conf_1 = 
+  ggplot(subset(summConf, CatDiff < 100), aes(y = Conf, x = CatDiff, color = MotCon)) + 
+  stat_summary(fun.y=mean,geom="point", size = 3.6) +
+  stat_summary(fun.data = mean_cl_normal, fun.args = list(mult = 1), geom = "errorbar",width=1) +
+  coord_cartesian(ylim=c(3, 5)) +
+  theme(axis.text.x  = element_text(size=14,color="black"),
+        axis.text.y  = element_text(size=14,color="black"),
+        axis.title.x = element_text(size=15),
+        axis.title.y = element_text(size=15),
+        legend.position="none") +
+  scale_colour_manual(values=suppPalette ) + 
+  scale_y_continuous(labels=scaleFUN) + 
+  ylab('Confidence')
+
+conf_2 = 
+  ggplot(subset(summConf, CatDiff == 100), aes(y = Conf, x = CatDiff, color = MotCon)) + 
+  stat_summary(fun.y=mean,geom="point", size = 3.3) +
+  stat_summary(fun.data = mean_cl_normal, fun.args = list(mult = 1), geom = "errorbar",width=0.3) +
+  coord_cartesian(ylim=c(1.0, 5.0), xlim = c(98,102)) +
+  theme(axis.line.y =element_blank(),
+      axis.text.y=element_blank(),
+      axis.ticks.y=element_blank(),
+      axis.title.y=element_blank(),
+      axis.text.x  = element_text(size=14,color="black"),
+      axis.title.x = element_text(size=15, color="black")) +
+  scale_x_continuous(breaks=c(100)) +
+  scale_colour_manual(values=suppPalette )
+
+confPlot = plot_grid(conf_1,conf_2, rel_widths = c(5,3))
+
+# Plot Reaction Time
+summRT = subset(AllData, !is.na(Conf)) %>%
+  group_by(Sub, MotCon, CatDiff) %>%
+  summarise(logRT = mean(log(RT)))
+  
+# Plot Confidence 
+RT_1 = 
+  ggplot(subset(summRT, CatDiff < 100), aes(y = logRT, x = CatDiff, color = MotCon)) + 
+  stat_summary(fun.y=mean,geom="point", size = 3.6) +
+  stat_summary(fun.data = mean_cl_normal, fun.args = list(mult = 1), geom = "errorbar",width=1) +
+  coord_cartesian(ylim=c(0, 0.6)) +
+  theme(axis.text.x  = element_text(size=14,color="black"),
+        axis.text.y  = element_text(size=14,color="black"),
+        axis.title.x = element_text(size=15),
+        axis.title.y = element_text(size=15),
+        legend.position="none") +
+  scale_colour_manual(values=suppPalette ) + ylab('logRT') 
+
+RT_2 = 
+  ggplot(subset(summRT, CatDiff == 100), aes(y = logRT, x = CatDiff, color = MotCon)) + 
+  stat_summary(fun.y=mean,geom="point", size = 3.3) +
+  stat_summary(fun.data = mean_cl_normal, fun.args = list(mult = 1), geom = "errorbar",width=0.3) +
+  coord_cartesian(ylim = c(0, 0.6), xlim = c(98,102)) +
+  theme(axis.line.y =element_blank(),
+      axis.text.y=element_blank(),
+      axis.ticks.y=element_blank(),
+      axis.title.y=element_blank(),
+      axis.text.x  = element_text(size=14,color="black"),
+      axis.title.x = element_text(size=15, color="black")) +
+  scale_x_continuous(breaks=c(100)) +
+  scale_colour_manual(values=suppPalette )
+
+
+RT_plot = plot_grid(RT_1,RT_2, rel_widths = c(5,3))
+
+# Combine plots
+plot_grid(RT_plot, confPlot, nrow = 2)
+```
+
+**Participants were faster and less confident when making motivationally consistent categorizations.** **A.** Participants were faster on Motivation Consistent trials than on Motivation Inconsistent trials (β = -0.05 SE = 0.02, t(27) = -2.80, p = 0.009. **B.** Participants were marginally less confident on Motivation Consistent trials than on Motivation Inconsistent trials (β = -0.08, SE = 0.04, t(28) = -2.04, p = 0.051). In both reaction time and confidence analyses, we controlled for trial difficulty by controlling for the absolute difference in scene and face proportion (|% Scene - % Face|) in each image. Greater |% Scene - % Face| indicates less ambiguity in the image. 
+ 

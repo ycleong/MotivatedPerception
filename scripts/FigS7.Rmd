@@ -1,0 +1,61 @@
+<style>div.comment {color:blue}</style>
+---
+title: "Motivation biases category selective neural activity during visual categorization"
+output: html_document
+---
+
+```{r set-up, warning=FALSE, message=FALSE, results="hide"}
+# Clear workspace
+rm(list = ls())
+
+# Load helper functions
+source('helper_functions.R')
+
+# Import libraries
+packages = c("tidyr","dplyr","ggplot2","lme4","lmerTest","Hmisc","car","lmtest","Rarity","cowplot")
+ipak(packages)
+
+# Redo long calculations
+redo_calc = 1;
+```
+
+```{r load-data}
+# Read data
+AllData = read.csv("../data/AllData.csv")
+
+# Convert to factors
+AllData$Sub = as.factor(AllData$Sub)
+AllData$Pred = as.factor(AllData$Pred)
+AllData$Want2See = as.factor(AllData$Want2See)
+AllData$Con_Rev = factor(AllData$Con, levels = c('Coop','Comp'))
+AllData_ValidTrials = filter(AllData, !(is.na(Choice)))
+
+# Load stats
+load("long_calc/ConditionxBet.Rda")
+```
+
+```{r fig.height= 5, fig.width = 8}
+res.prob = lmer(Prob ~ Cat_n_z  + Con * Pred + (Con * Pred |Sub), AllData_ValidTrials)
+summary(res.prob)
+
+ggplot(AllData_ValidTrials, aes(x=Cat_n,y=Prob,color = Pred)) +
+  stat_summary(fun.y=mean,geom="point",size=2) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar",width=1,
+               fun.args = list(mult = 1)) + 
+  theme(legend.position="none",
+      panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(), 
+        axis.line = element_line(colour = "black"),
+        axis.text.x  = element_text(size=13,color="black"),
+        axis.text.y  = element_text(size=13,color="black"),
+        axis.title.x = element_text(size=15),
+        axis.title.y = element_text(size=13),
+        strip.background = element_blank(),
+        strip.text.x = element_text(face = "plain", size = 13)) +
+  xlab("% Scene") + ylab("Classifier Prob(Scene)") +
+  facet_grid(~Con_Rev, labeller=labeller(Con_Rev = c("Coop" = "Cooperation","Comp" = "Competition"))) +
+  scale_colour_manual(values=myPalette)
+```
+
+**Motivation biases face and scene selective neural activity during visual categorization.** Classifier probability that the presented image was a scene rather than a face based on the BOLD response in the ventral visual stream. Red dots: teammate or opponent betting that the next image will be a face. Scene probability was higher when participants were motivated to see a scene (i.e. teammate bets scene or opponent bets face) than when participants were motivated to see a face (i.e. teammate bets face or opponent bets scene), β = 0.03, SE = 0.02, t(4756) = 2.05, p = 0.040. 

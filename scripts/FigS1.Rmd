@@ -1,0 +1,178 @@
+<style>div.comment {color:blue}</style>
+---
+title: "Figure S1"
+output: html_document
+---
+
+```{r set-up, warning=FALSE, message=FALSE, results="hide"}
+# Clear workspace
+rm(list = ls())
+
+# Load helper functions
+source('helper_functions.R')
+
+# Import libraries
+packages = c("tidyr","dplyr","ggplot2","lme4","lmerTest","Hmisc","car","lmtest","Rarity","cowplot","MASS",'sfsmisc')
+ipak(packages)
+
+# Redo long calculations
+redo_calc = 1;
+
+```
+
+
+```{r load-data}
+# Read data
+AllData = read.csv("../data/AllData_inlab.csv")
+
+# Convert to factors
+AllData$Sub = as.factor(AllData$Sub)
+AllData$Pred = as.factor(AllData$Pred)
+AllData$Want2See = as.factor(AllData$Want2See)
+AllData$Con_Rev = factor(AllData$Con, levels = c('Coop','Comp'))
+AllData$Cat_n_z = as.numeric((scale(AllData$Cat_n)))
+```
+
+```{r Cooperation-Behav}
+# Cooperation Condition: Does motivation bias participants' perceptual judgments?
+thisData = subset(AllData, Con == "Coop")
+summary(glmer(Choice ~ Cat_n_z + Pred + (Pred |Sub), thisData, family = binomial(link="probit")))
+```
+
+```{r Competition-Behav}
+# Competition Condition: Does motivation bias participants' perceptual judgments?
+thisData = subset(AllData, Con == "Comp")
+summary(glmer(Choice ~ Cat_n_z + Pred + (Pred |Sub), thisData, family = binomial(link="probit")))
+```
+
+```{r Interaction-Behav}
+# Condition x Bet Interaction
+if (redo_calc) {
+  res = glmer(Choice ~ Cat_n_z + Con * Pred + (Con * Pred|Sub), AllData, 
+              family = binomial(link="probit"), control = glmerControl(calc.derivs = FALSE))
+  
+  save(res,file="long_calc/ConditionxBet_Inlab.Rda")
+
+} else {
+  load("long_calc/ConditionxBet_Inlab.Rda")
+}
+summary(res)
+```
+
+```{r plot-behav, fig.width = 9, fig.height = 3.5, warning=F}
+thisData = AllData
+thisData$Pred = recode(thisData$Pred,"0='Face';1='Scene'")
+
+# Run GLM (for visualization only, do not use for inference)
+res.glm = glm(Choice ~ Cat_n + Con_Rev * Pred, thisData, family = binomial(link="probit"))
+
+# Create predicted dataset
+pred.data = data.frame(Cat_n = rep(seq(0, 100, len = 101),4),
+                       Con_Rev = c(rep("Coop",202),rep("Comp",202)),
+                       Pred = c(rep("Face",101),rep("Scene",101),rep("Face",101),rep("Scene",101))
+                       )
+pred.data$Choice = predict.glm(res.glm,pred.data,type = "response")
+
+# Compute Subject Average
+sub_avg = group_by(thisData,Sub,Con_Rev,Cat_n,Pred) %>% 
+    summarise(Avg = mean(Choice, na.rm=T), SEM = sem(Choice))
+
+# Plot group average with fit
+plot.behav = ggplot() +
+  stat_summary(data = sub_avg, aes(x=Cat_n,y=Avg,color = Pred),
+               fun.y=mean,geom="point",size=2.5) +
+  stat_summary(data = sub_avg, aes(x=Cat_n,y=Avg,color = Pred),
+               fun.data = mean_cl_normal, geom = "errorbar",width=1,
+               fun.args = list(mult = 1)) + 
+  geom_line(data = pred.data, aes(x=Cat_n,y=Choice,color= Pred),size=1) +
+  theme(legend.position="none",
+      panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(), 
+        axis.line = element_line(colour = "black"),
+        axis.text.x  = element_text(size=13,color="black"),
+        axis.text.y  = element_text(size=13,color="black"),
+        axis.title.x = element_text(size=15),
+        axis.title.y = element_text(size=15),
+        strip.background = element_blank(),
+        strip.text.x = element_text(face = "bold", size = 15)) +
+  xlab("% Scene") + ylab("P(Respond Scene)") +
+  facet_grid(~Con_Rev, labeller=labeller(Con_Rev = c("Coop" = "Cooperation","Comp" = "Competition"))) +
+  scale_colour_manual(values=myPalette)
+
+```
+
+```{r fig.width = 6, fig.height = 3, warning=F}
+# Extract random slope of the interaction
+intSlope = unlist(coef(res)$Sub$`ConCoop:Pred1`)
+
+# Create datafrom for each subjec'ts bias, and order in descending order
+SubBias = as.data.frame(intSlope)
+SubBias$Sub = unique(AllData$Sub)
+SubBias = SubBias[order(-SubBias$intSlope), ]
+
+plot.behavbias = ggplot(data=SubBias, aes(c(1:28), y=intSlope)) +
+  geom_bar(stat="identity") +
+  theme(legend.position="none",
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), 
+        panel.background = element_blank(), 
+        axis.text.x  = element_blank(),
+        axis.text.y  = element_text(size=14,color="black"),
+        axis.line.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        strip.background = element_blank(),
+        strip.text.x = element_text(face = "bold")) +
+  xlab("Participant") + ylab("Motivational Bias") +
+  scale_y_continuous(breaks=seq(0,4,2)) +
+  coord_cartesian(ylim=c(-1, 5)) 
+  
+```
+
+Check for performance difference: *Will retry this analysis including in-lab data*  
+
+```{r fig.width = 9, fig.height = 6.5, warning=F, echo = T, eval = T}
+# Calculate performance
+performData=subset(AllData,(Cat_n != 50) & !is.na(Choice))
+performData = mutate(performData, outcome = (Choice == 1 & Cat_n > 50) | (Choice == 0 & Cat_n < 50))
+
+# Run correlation
+dPerform = group_by(performData,Sub) %>%
+  summarise(avg = mean(outcome))
+
+dPerform = left_join(dPerform,SubBias)
+
+# Make performance plot
+plot.perform = ggplot(dPerform, aes(intSlope, avg)) +
+  geom_point() +
+  geom_smooth(method='rlm',se=FALSE, colour="black") +
+  theme(legend.position="none",
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), 
+        panel.background = element_blank(), 
+        axis.text.x  = element_text(size=14,color="black"),
+        axis.text.y  = element_text(size=14,color="black"),
+        axis.line = element_line(colour = "black"),
+        strip.background = element_blank(),
+        strip.text.x = element_text(face = "bold")) +
+  xlab("Motivational Bias") +
+  ylab("Performance") +
+  coord_cartesian(ylim=c(0.7, 1)) 
+
+```
+
+
+```{r}
+# Robust Regression
+rb_lm = rlm(avg ~ intSlope, data = dPerform)
+summary(rb_lm)
+f.robftest(rb_lm , var = "intSlope")
+```
+
+```{r fig.width = 9, fig.height = 6.5, warning=F, echo = T, eval = T}
+# Plot
+bottomplot = plot_grid(plot.behavbias,plot.perform, rel_widths = c(1.5,1), labels = c('B','C'))
+plot_grid(plot.behav,bottomplot, ncol = 1, labels = c("A",""))
+```
+
+Behavioral results were replicated in an independent sample of thirty participants. **A.** Participants were more likely to categorize the stimulus as what they wanted to see. In the Cooperation Condition, the psychometric function when the teammate bet that the upcoming image has more scene is shifted right relative to when the teammate bet that the upcoming image has more face, indicating that participants were more likely to categorize an image as having more scene. In the Competition Condition, the psychometric function when the opponent bet that the upcoming image has more scene is shifted left relative to when the opponent bet that the upcoming image has more face, indicating that participants were less likely to categorize an image as having more scene. Bet x Condition interaction (β = 0.56, z = 3.21, p = 0.001). **B.** Magnitude of bias in each participant, defined as the random slope of the Bet x Condition interaction. We performed a median split and defined the participants with stronger motivational bias as “High Bias” participants, and participants with weaker motivational bias as “Low Bias” participants. **C.**  Task performance (proportion of correct categorizations) was worse for participants with higher motivational bias. Statistical significance was assessed using a robust regression analysis that down-weights the influences of outliers.
