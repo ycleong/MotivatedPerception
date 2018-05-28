@@ -1,4 +1,3 @@
-<style>div.comment {color:blue}</style>
 ---
 title: "Individual subject fits"
 output: html_document

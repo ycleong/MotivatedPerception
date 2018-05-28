@@ -1,4 +1,3 @@
-<style>div.comment {color:blue}</style>
 ---
 title: "Motivation Biases Visual Categorization"
 output: html_document

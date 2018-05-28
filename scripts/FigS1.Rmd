@@ -1,4 +1,3 @@
-<style>div.comment {color:blue}</style>
 ---
 title: "Figure S1"
 output: html_document

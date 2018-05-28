@@ -1,4 +1,3 @@
-<style>div.comment {color:blue}</style>
 ---
 title: "NAcc activity is associated with response bias"
 output: html_document

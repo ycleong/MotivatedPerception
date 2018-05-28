@@ -1,4 +1,3 @@
-<style>div.comment {color:blue}</style>
 ---
 title: "Motivation biases face and scene selective neural activity during visual categorization."
 output: html_document

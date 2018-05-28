@@ -1,4 +1,3 @@
-<style>div.comment {color:blue}</style>
 ---
 title: "RT and Confidence Analysis"
 output: html_document

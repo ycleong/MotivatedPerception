@@ -1,4 +1,3 @@
-<style>div.comment {color:blue}</style>
 ---
 title: "Low Bias NAcc Timecourse"
 output: html_document

@@ -1,4 +1,3 @@
-<style>div.comment {color:blue}</style>
 ---
 title: "Salience and Attention networks"
 output: html_document

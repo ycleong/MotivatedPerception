@@ -1,4 +1,3 @@
-<style>div.comment {color:blue}</style>
 ---
 title: "Modeling Results"
 output: html_document
