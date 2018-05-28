@@ -7,7 +7,8 @@ The online supplement for our paper <i> Neurocomputational mechanisms underlying
 ### Data
 Data from the fMRI sample and in-lab replication that can be downloaded as csv files here:  
   - [fMRI Sample](data/AllData.csv)  
-  - [In-lab Replication](data/AllData_inlab.csv)
+  - [In-lab Replication](data/AllData_inlab.csv)  
+
 [Neurovault Collection](https://neurovault.org/collections/EAAXGDRJ/)
   
 ### Analaysis Code
