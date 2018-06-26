@@ -144,7 +144,7 @@ performData = mutate(performData, outcome = (Choice == 1 & Cat_n > 50) | (Choice
 
 # Correlate performance with bias
 dPerform = group_by(performData,Sub) %>%
-  summarise(avg = mean(outcome))
+  summarise(avg= sum(outcome)*0.10)
 
 dPerform = left_join(dPerform,SubBias)
 
@@ -162,8 +162,8 @@ plot.perform = ggplot(dPerform, aes(intSlope, avg)) +
         strip.background = element_blank(),
         strip.text.x = element_text(face = "bold")) +
   xlab("Motivational Bias") +
-  ylab("Performance") +
-  coord_cartesian(ylim=c(0.7, 1)) 
+  ylab("Earnings") +
+  coord_cartesian(ylim=c(8.9, 12.2)) 
 ```
 
 ```{r}
