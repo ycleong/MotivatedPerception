@@ -16,6 +16,6 @@ Data from the fMRI sample and in-lab replication that can be downloaded as csv f
 * Drift Diffusion Model: [HDDM fitting](scripts/HDDM.ipynb), [Individual Fits](scripts/FigS4.Rmd) and [Results Summary](scripts/Fig3.Rmd)  
 * [NAcc activity is associated with response bias:](scripts/Fig5.Rmd)   
 * [Salience and attention networks predict trial-by-trial bias](scripts/FigS5.Rmd)  
-* Motivation biases face and scene selective neural activity during visual categorization: [Classifier](Classification.ipynb) & [Results Summary](scripts/Fig6.Rmd)  
+* Motivation biases face and scene selective neural activity during visual categorization: [Classifier](scripts/Classification.ipynb) & [Results Summary](scripts/Fig6.Rmd)  
 * [RT and Confidence Results](scripts/FigS2.Rmd)  
 * [Scene Bias](scripts/FigS3.Rmd)  
