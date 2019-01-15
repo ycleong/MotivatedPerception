@@ -1,0 +1,187 @@
+---
+title: "Motivation biases face and scene selective neural activity during visual categorization."
+output: html_document
+---
+
+```{r set-up, warning=FALSE, message=FALSE, results="hide"}
+# Clear workspace
+rm(list = ls())
+
+# Load helper functions
+source('helper_functions.R')
+
+# Import libraries
+packages = c("tidyr","dplyr","ggplot2","lme4","lmerTest","Hmisc","car","lmtest","Rarity","cowplot")
+ipak(packages)
+
+# Redo long calculations
+redo_calc = 1;
+```
+
+#### Load Data
+```{r load-data}
+# Read data
+AllData = read.csv("../data/AllData.csv")
+
+# Convert to factors
+AllData$Sub = as.factor(AllData$Sub)
+AllData$Pred = as.factor(AllData$Pred)
+AllData$Want2See = as.factor(AllData$Want2See)
+AllData$Con_Rev = factor(AllData$Con, levels = c('Coop','Comp'))
+AllData_ValidTrials = filter(AllData, !(is.na(Choice)))
+
+# Load psychometric results (see Fig. 2 code)
+load("long_calc/ConditionxBet.Rda")
+```
+
+####	Motivation biases category selective neural activity during visual categorization 
+```{r}
+## Median split participants
+intSlope = unlist(coef(res)$Sub$`ConCoop:Pred1`)
+SubBias = as.data.frame(intSlope)
+SubBias$Sub = unique(AllData$Sub)
+SubBias$medianBehave = SubBias$intSlope > median(SubBias$intSlope)
+
+BiasedData =  subset(AllData_ValidTrials, Sub %in% SubBias$Sub[SubBias$medianBehav == "TRUE"])
+UnbiasedData = subset(AllData_ValidTrials, Sub %in% SubBias$Sub[SubBias$medianBehav == "FALSE"])
+
+if (redo_calc) {
+  res.prob = lmer(Prob ~ Cat_n_z  + Con * Pred + (Con * Pred |Sub), AllData_ValidTrials)
+  
+  res.prob.bias = lmer(Prob ~ Cat_n_z  + Con * Pred + (Con * Pred |Sub), BiasedData)
+  res.prob.unbias = lmer(Prob ~ Cat_n_z  + Con * Pred + (Con * Pred |Sub), UnbiasedData)
+
+  save(res.prob, res.prob.bias, res.prob.unbias, file="long_calc/NeuralBias.Rda")
+} else {
+  load("long_calc/NeuralBias.Rda")
+  }
+
+AllData_ValidTrials = full_join(AllData_ValidTrials, SubBias)
+
+res.int.con = lmer(Prob ~ Cat_n_z  + Con * Pred * intSlope + (Con * Pred|Sub), AllData_ValidTrials)
+summary(res.int.con)
+
+# High Bias participants
+summary(res.prob.bias)
+
+# Low Bias Participants
+summary(res.prob.unbias)
+
+# Bias Plot
+plot.prob.bias = ggplot(BiasedData, aes(x=Cat_n,y=Prob,color = Pred)) +
+  stat_summary(fun.y=mean,geom="point",size=2) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar",width=1,
+               fun.args = list(mult = 1)) + 
+  theme(legend.position="none",
+      panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(), 
+        axis.line = element_line(colour = "black"),
+        axis.text.x  = element_text(size=13,color="black"),
+        axis.text.y  = element_text(size=13,color="black"),
+        axis.title.x = element_text(size=15),
+        axis.title.y = element_text(size=13),
+        strip.background = element_blank(),
+        strip.text.x = element_text(face = "plain", size = 13)) +
+  xlab("% Scene") + ylab("Classifier Prob(Scene)") +
+  facet_grid(~Con_Rev, labeller=labeller(Con_Rev = c("Coop" = "Cooperation","Comp" = "Competition"))) +
+  scale_colour_manual(values=myPalette) + 
+  ggtitle("High Bias")
+
+# Unbias plot
+plot.prob.unbias = ggplot(UnbiasedData, aes(x=Cat_n,y=Prob,color = Pred)) +
+  stat_summary(fun.y=mean,geom="point",size=2) +
+  stat_summary(fun.data = mean_cl_normal, geom = "errorbar",width=1,
+               fun.args = list(mult = 1)) + 
+  theme(legend.position="none",
+      panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(), 
+        axis.line = element_line(colour = "black"),
+        axis.text.x  = element_text(size=13,color="black"),
+        axis.text.y  = element_text(size=13,color="black"),
+        axis.title.x = element_text(size=15),
+        axis.title.y = element_text(size=13),
+        strip.background = element_blank(),
+        strip.text.x = element_text(face = "plain", size = 13)) +
+  xlab("% Scene") + ylab("Classifier Prob(Scene)") + 
+  facet_grid(~Con_Rev, labeller=labeller(Con_Rev = c("Coop" = "Cooperation","Comp" = "Competition"))) +
+  scale_colour_manual(values=myPalette) + 
+  ggtitle("Low Bias")
+
+```
+
+#### Neural bias was correlated with motivational bias
+```{r fig.width = 9, fig.height=8}
+NeuralBias = NULL
+for (s in unique(AllData$Sub)){
+  thisData = NULL
+  this_res = lm(Prob ~ Cat_n + Con * Pred, data = subset(AllData_ValidTrials, Sub == s))
+  this_coef = coef(this_res)["ConCoop:Pred1"]
+  
+  thisData$NeuralBias = this_coef
+  NeuralBias = rbind(NeuralBias,thisData)
+}
+NeuralBias = as.numeric(NeuralBias)
+cor.test(NeuralBias, intSlope)
+
+correlationPlot = as.data.frame(cbind(NeuralBias, intSlope))
+
+# Plot behavioral bias
+plot.prob.behav = ggplot(data = correlationPlot, aes(x = NeuralBias, y = intSlope)) +
+  geom_point() +
+  geom_smooth(method='lm',se=FALSE, colour="black") +
+    theme(legend.position="none",
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.text.x  = element_text(size=13,color="black"),
+        axis.text.y  = element_text(size=13,color="black"),
+        axis.line = element_line(colour = "black"),
+        strip.background = element_blank(),
+        strip.text.x = element_text(face = "bold"),
+                plot.title = element_text(face = "plain", size = (15))) +
+  coord_cartesian(ylim=c(-1.5, 5)) +
+  ylab("Motivational Bias") + xlab("Neural Bias")
+
+```
+
+### Participants neural bias was associated with perceptual bias but not response bias
+```{r fig.width = 9, fig.height=8}
+# Load model parameters
+full.model.subj_parm = read.csv("../data/model_outputs/subject_parms/simpleFull_subjparms.csv")
+full.model.subj_parm$Sub = as.factor(full.model.subj_parm$Sub)
+full.model.subj_parm = left_join(full.model.subj_parm,SubBias)
+full.model.subj_parm$NeuralBias = NeuralBias
+
+# Run GLM
+lm.VVS = summary(lm(scale(NeuralBias) ~ scale(z) + scale(drift_bias), full.model.subj_parm))
+lm.VVS
+lm.VVS.coef = lm.VVS$coefficients
+
+# Extract coefficents 
+reg_coef = NULL
+reg_coef$parm = c('z_bias','v_bias')
+reg_coef$value = c(lm.VVS.coef["scale(z)","Estimate"],lm.VVS.coef["scale(drift_bias)","Estimate"])
+reg_coef$SE = c(lm.VVS.coef["scale(z)","Std. Error"],lm.VVS.coef["scale(drift_bias)","Std. Error"])
+reg_coef = as.data.frame(reg_coef)
+reg_coef$parm = factor(reg_coef$parm, levels = c('z_bias','v_bias'))
+
+# VVS ~ Z bias + V Bias
+plot.VVS = ggplot(reg_coef) +
+  geom_bar(aes(x = parm, y = value), stat = "identity", width = 0.2) +
+  geom_errorbar(aes(x = parm, ymin = value - SE, ymax = value + SE), stat = "identity", width = 0.05) +
+      theme(axis.text.x  = element_text(size=14,color="black"),
+        axis.text.y  = element_text(size=14,color="black"),
+        axis.title.y = element_text(size=14),
+        strip.text.x = element_text(face = "bold", size = 14)) +
+  ylab("Estimate") +
+  xlab("NULL") + 
+  coord_cartesian(ylim=c(-0.2, 0.8))
+
+# Plot all
+plot_grid(plot.prob.bias,plot.prob.unbias,plot.prob.behav, plot.VVS, labels = c('A','','B', 'C'), ncol = 2)
+```
+
+**Motivation biases face and scene selective neural activity during visual categorization.** **A.** Classifier probability that the presented image was a scene rather than a face based on the BOLD response in the ventral visual stream, separately for participants with high and low behavioral bias. Blue dots: teammate or opponent betting that the next image will be scene; Red dots: teammate or opponent betting that the next image will be a face. For High Bias participants, scene probability was higher when participants were motivated to see a scene (i.e. teammate bets scene or opponent bets face) than when participants were motivated to see a face (i.e. teammate bets face or opponent bets scene). There was no effect of motivation in Low Bias participants. **B.** The effect of motivation on classifier probability (Neural Bias) was correlated with the extent to which a participant was bias in his or her categorizations (Motivational Bias). **C.** Regression coefficients of the response bias (βz) and perceptual bias (βv) when both were entered into the same model to predict participants’ neural bias. Only the perceptual bias was significantly associated with participants’ neural bias. 
+

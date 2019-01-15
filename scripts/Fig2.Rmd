@@ -174,7 +174,6 @@ f.robftest(rb_lm , var = "intSlope")
 ```
 
 
-
 ```{r fig.width = 9, fig.height = 6.5, warning=F, echo = T, eval = T}
 # Plot
 bottomplot = plot_grid(plot.behavbias,plot.perform, rel_widths = c(1.5,1), labels = c('B','C'))

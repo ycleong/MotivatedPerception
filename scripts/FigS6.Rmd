@@ -1,8 +1,7 @@
 ---
-title: "Low Bias NAcc Timecourse"
+title: "Individual subject fits"
 output: html_document
 ---
-
 ```{r set-up, warning=FALSE, message=FALSE, results="hide"}
 # Clear workspace
 rm(list = ls())
@@ -15,9 +14,10 @@ packages = c("tidyr","dplyr","ggplot2","lme4","lmerTest","Hmisc","car","lmtest",
 ipak(packages)
 
 # Redo long calculations
-redo_calc = 0;
+redo_calc = 1;
 ```
 
+### Load Data
 ```{r load-data}
 # Read data
 AllData = read.csv("../data/AllData.csv")
@@ -27,50 +27,49 @@ AllData$Sub = as.factor(AllData$Sub)
 AllData$Pred = as.factor(AllData$Pred)
 AllData$Want2See = as.factor(AllData$Want2See)
 AllData$Con_Rev = factor(AllData$Con, levels = c('Coop','Comp'))
-
-# Load stats
-load("long_calc/ConditionxBet.Rda")
 ```
 
-```{r warning=F}
-# Extract random slope of the interaction
-intSlope = unlist(coef(res)$Sub$`ConCoop:Pred1`)
 
-# Create datafrom for each subjec'ts bias, and order in descending order
-SubBias = as.data.frame(intSlope)
-SubBias$Sub = unique(AllData$Sub)
-SubBias = SubBias[order(-SubBias$intSlope),]
+```{r fig.width = 10, fig.height = 8}
+# Plot RT
+AllData_ValidTrials = filter(AllData, !(is.na(Choice)))
+AllData_ValidTrials$RT_Rev = as.numeric(as.character(AllData_ValidTrials$RT))
+AllData_ValidTrials$RT_Rev[AllData_ValidTrials$Choice < 0.5] = AllData_ValidTrials$RT_Rev[AllData_ValidTrials$Choice < 0.5] * - 1
+AllData_ValidTrials$Want2See = ifelse(AllData_ValidTrials$Want2See == "0", "MotFace", "MotScene")
+AllData_ValidTrials$Want2See = factor(AllData_ValidTrials$Want2See)
 
-SubBias$medianBehav = SubBias$intSlope > median(SubBias$intSlope)
+
+PPC = read.csv("https://www.dropbox.com/s/8ggv6iwkv1qs9fo/simpleFull_ppc.csv?dl=1", header = F)
+
+# Wrangle data
+colnames(PPC) = c("index","p_rt","p_response","Sub","stim","response","rt","condition","mot_con")
+PPC$Sub = as.factor(PPC$Sub)
+PPC$p_response = ifelse(PPC$p_rt > 0, 1, 0)
+PPC$RT_Rev = PPC$p_rt
+
+PPC$Want2See = ifelse(PPC$condition < 0, "MotFace", "MotScene")
+PPC$Want2See = factor(PPC$Want2See)
+
+# Recode subject
+AllSub = NULL
+AllSub$Sub = unique(AllData_ValidTrials$Sub)
+AllSub$SubID = c(1:30)
+AllSub = as.data.frame(AllSub)
+AllSub$SubID = factor(AllSub$SubID)
+
+AllData_ValidTrials = left_join(AllData_ValidTrials,AllSub)
+PPC = left_join(PPC,AllSub)
+
+PPC_timebound = PPC[(abs(PPC$p_rt) < 4) & (abs(PPC$p_rt) > 0.3),]
+PPC_positive = PPC_timebound[PPC_timebound$p_rt > 0,]
+PPC_negative = PPC_timebound[PPC_timebound$p_rt < 0,]
+
+ggplot() + 
+  geom_histogram(data = AllData_ValidTrials,  aes(x = RT_Rev, y = ..ncount..)) +
+  geom_line(data = PPC_timebound, stat = "density", aes(x = RT_Rev, y = ..scaled..), size = 1.5, color='steelblue', alpha = 0.6) +
+  xlab("RT(s)") + ylab("Probability") +
+  theme(axis.text.y  = element_blank()) +
+  facet_wrap(~ SubID + Want2See, nrow = 6) +
+  coord_cartesian(xlim = c(-4.1, 4.1))
 ```
-
-```{r fig.width = 8, fig.height = 4}
-# Read NAcc time course
-NAcc_tc = read.csv('../data/NAcc_timecourse.csv')
-NAcc_tc$Sub = as.factor(NAcc_tc$Sub)
-NAcc_tc$MotCon = as.factor(NAcc_tc$MotCon)
-NAcc_tc = left_join(NAcc_tc,SubBias)
-
-NAcc_tc_summary = group_by(NAcc_tc,MotCon,Time,medianBehav) %>%
-  summarise(meanActivity = mean(Activity), se = sem(Activity))
-
-NAcc_tc_summary$Time = NAcc_tc_summary$Time * 2
-
-ggplot(subset(NAcc_tc_summary, medianBehav == FALSE), 
-                      aes(x=Time, y=meanActivity, linetype=MotCon)) +
-  geom_line(size = 1.5) +
-    theme(legend.position="none",
-          axis.text.x  = element_text(size=14,color="black"),
-      axis.text.y  = element_text(size=14,color="black"),
-      axis.title.x = element_text(size=14),
-      axis.title.y = element_text(size=14),
-      strip.text.x = element_blank()) +
-  geom_errorbar(aes(ymin=meanActivity-se, ymax=meanActivity+se), width=.3) +
-  coord_cartesian(ylim=c(-0.12, 0.20)) +
-  scale_x_continuous(breaks=seq(-8,8,2)) +
-  xlab("Time (s)") + ylab("NAcc Activity (z)")
-
-```
-
-**NAcc activity was not significantly different between Motivation Consistent trials and Motivation Inconsistent trials for Low Bias participants**. NAcc timecourse of Low Bias participants time-locked to image onset, corrected for hemodynamic lag by shifting the BOLD data by 4 seconds. The trial starts with the “Waiting for Teammate/Opponent” screen at -6s. The teammate or opponent makes a bet at -4s, which remains on the screen for 4s. The image is presented at 0s and stays on screen for 4s. Solid lines: Motivation Consistent trials. Dashed lines: Motivation Inconsistent trials.
-
+**Observed and predicted choice and RT distribution of each participant.** RTs for face responses were sign-flipped for illustration purposes. For each participant, we plot the RT distributions for face (negative RTs) and scene responses (positive RTs) separately for when the participant was motivated to see more face (MotFace) and for when the participant was motivated to see more scene (MotScene). Blue line indicates model-predicted choice and RT distributions.

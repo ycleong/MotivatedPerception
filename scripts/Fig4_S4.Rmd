@@ -1,0 +1,209 @@
+---
+title: "Figure 4 and S4"
+output: html_document
+---
+
+```{r set-up, warning=FALSE, message=FALSE, results="hide"}
+# Clear workspace
+rm(list = ls())
+
+# Load helper functions
+source('helper_functions.R')
+
+# Import libraries
+packages = c("tidyr","dplyr","ggplot2","lme4","lmerTest","Hmisc","car","lmtest","Rarity","cowplot")
+ipak(packages)
+
+# Redo long calculations
+redo_calc = 0;
+```
+
+### Load Data
+```{r load-data}
+# Read data
+AllData = read.csv("../data/AllData.csv")
+
+# Convert to factors
+AllData$Sub = as.factor(AllData$Sub)
+AllData$Pred = as.factor(AllData$Pred)
+AllData$Want2See = as.factor(AllData$Want2See)
+AllData$Con_Rev = factor(AllData$Con, levels = c('Coop','Comp'))
+AllData_ValidTrials = filter(AllData, !(is.na(Choice)))
+
+# Load psychometric results (see Fig. 2 code)
+load("long_calc/ConditionxBet.Rda")
+```
+
+```{r warning = F, message = F}
+AllData$Conf = as.numeric(as.character(AllData$Conf))
+AllData$RT = as.numeric(as.character(AllData$RT))
+AllData$CatDiff = abs(50 - AllData$Cat_n)*2
+AllData$ChoiceF = factor(AllData$Choice)
+if (redo_calc){
+
+  ##  MotConRT ## 
+  resMotConRT = lmer(log(RT) ~ MotCon + CatDiff + (MotCon + CatDiff | Sub), AllData, control =lmerControl(calc.derivs = FALSE))
+  
+  resMotConRT_Face = lmer(log(RT) ~ Want2See + CatDiff + (Want2See + CatDiff | Sub), subset(AllData, ChoiceF == "0"), control = lmerControl(calc.derivs = FALSE))
+  
+  resMotConRT_Scene = lmer(log(RT) ~ Want2See + CatDiff + (Want2See + CatDiff | Sub), subset(AllData, ChoiceF == "1"), control =lmerControl(calc.derivs = FALSE))
+
+  ## Condition Differences ##
+  resCondRT = lmer(log(RT) ~ CatDiff + Con + (Con + CatDiff |Sub), AllData, control =lmerControl(calc.derivs = FALSE))
+  
+  resCondResponseRT = lmer(log(RT) ~ CatDiff + Con * Choice + (Con *  Choice + CatDiff|Sub), AllData, control =lmerControl(calc.derivs = FALSE))
+
+  resCondMotRT = lmer(log(RT) ~ CatDiff + Con * Want2See * Choice + (Con * Want2See * Choice + CatDiff|Sub), AllData, control =lmerControl(calc.derivs = FALSE))
+  sum_resCondMotRT = summary(resCondMotRT)
+  
+  
+  save(resMotConRT, resMotConRT_Face, resMotConRT_Scene, resCondRT, resCondMotRT, sum_resCondMotRT, resCondResponseRT, file="long_calc/RTMot.Rda")
+
+}else{
+  load("long_calc/RTMot.Rda")
+}
+
+# MotConRT
+summary(resMotConRT)
+
+# MotConRT_Face
+summary(resMotConRT_Face)
+
+# MotConRT_Scene
+summary(resMotConRT_Scene)
+
+# Main effect of Condition on RT
+summary(resCondRT)
+
+# Interaction effect of Condition x Response on RT
+summary(resCondResponseRT)
+
+# Interaction effect of Condition X Want2See X Response on RT
+sum_resCondMotRT
+```
+
+### Summarize data
+
+```{r}
+# Summarize real data
+summRT = subset(AllData, !is.na(Conf)) %>%
+  group_by(Sub, Want2See, ChoiceF, Cat_n) %>%
+  summarise(meanRT = mean(RT))
+
+summRT$CatDiff = abs(50 - summRT$Cat_n)*2
+
+# Summarize simulated data
+if (redo_calc){
+  sim_data = NULL
+
+  for (it in 1:1000){
+    this_sim = read.csv(paste0("../data/model_outputs/simulations/simRT/sim",it,".csv"))
+    sim_data = rbind(sim_data, this_sim)
+  }
+  
+  colnames(sim_data) = c('X','RT','Choice','Sub','Want2See','Cat_n')
+  sim_data$ChoiceF = factor(sim_data$Choice)
+  sim_data$Want2See = (sim_data$Want2See + 1) / 2
+  sim_data$Want2See = factor(sim_data$Want2See)
+
+  summRT_sim = sim_data %>%
+    group_by(Sub, Want2See, ChoiceF, Cat_n) %>%
+    summarise(meanRT = mean(RT))
+
+  save(summRT_sim, file="long_calc/summRT_sim.Rda")
+  
+} else{
+  load("long_calc/summRT_sim.Rda")
+}
+```
+
+### Plot Data
+```{r fig.width = 8.5, fig.height = 7}
+# Plot
+dataplot = 
+  ggplot(subset(summRT, ((ChoiceF == "0") & (Cat_n < 60)) | ((ChoiceF == "1") & (Cat_n > 40))),
+       aes(y = meanRT, x = Cat_n, color = Want2See)) + 
+  stat_summary(fun.y=mean,geom="point", size = 3.6) +
+  stat_summary(fun.data = mean_cl_normal, fun.args = list(mult = 1), geom = "errorbar",width=1) +
+  facet_wrap(~ ChoiceF) +
+  theme(axis.text.x  = element_text(size=14,color="black"),
+        axis.text.y  = element_text(size=14,color="black"),
+        axis.title.x = element_text(size=15),
+        axis.title.y = element_text(size=15),
+        strip.background = element_blank(),
+        legend.position="none") +
+  ylab("RT(s)") + xlab("% Scene") +
+  scale_colour_manual(values=myPalette) +
+  coord_cartesian(ylim = c(1,2.5))
+
+
+simplot = 
+  ggplot(subset(summRT_sim, ((ChoiceF == "0") & (Cat_n < 60)) | ((ChoiceF == "1") & (Cat_n > 40))), 
+       aes(y = meanRT, x = Cat_n, color = Want2See)) +
+  stat_summary(fun.y=mean,geom="point", size = 3.6) +
+  stat_summary(fun.data = mean_cl_normal, fun.args = list(mult = 1), geom = "errorbar",width=1) +
+  facet_wrap(~ ChoiceF) +
+      theme(axis.text.x  = element_text(size=14,color="black"),
+        axis.text.y  = element_text(size=14,color="black"),
+        axis.title.x = element_text(size=15),
+        axis.title.y = element_text(size=15),
+        strip.background = element_blank(),
+        legend.position="none") +
+  scale_colour_manual(values=myPalette) +
+  ylab("RT(s)") + xlab("% Scene") +
+  coord_cartesian(ylim = c(1,2.5))
+
+plot_grid(dataplot, simplot, nrow = 2)
+```
+
+**Figure 4. Drift diffusion model accounts for asymmetries in reaction times. A.** Reaction times for face (left) and scene (right) responses at each % scene, separately for when participants were motivated to see faces (red) and scenes (blue).  Participants were faster to categorize an image as the category they were motivated to see. Trial types with less than 48 trials (i.e. 1% of total number of trials) were excluded from the plot because there were too few trials for reliable estimates and they tend to come from a small number of participants. For example, when % scene was high, very rarely did participants categorize an image as a face. Error bars indicate between-subject SEM. **B.** Model-predicted reaction times. Reaction times were simulated using the z & v model with parameter values sampled from the posterior distribution. 500 datasets were simulated, each with the same number of participants and trials as the original data. Reaction times were first averaged over  simulations to obtain an average reaction time for each trial type for each participant, and then averaged over participants to obtain the mean reaction time for each type. Error bars denote between-subject SEM.
+
+# Run stats
+```{r fig.width = 8.5, fig.height = 7}
+## Plot RT separately by condition
+summRTcon = subset(AllData, !is.na(Conf)) %>%
+  group_by(Sub, Want2See, ChoiceF, Cat_n, Con_Rev) %>%
+  summarise(meanRT = mean(RT))
+
+temp = filter(summRTcon, Con_Rev == "Coop")
+
+Coop.plot = ggplot(subset(temp, ((ChoiceF == "0") & (Cat_n < 60)) | ((ChoiceF == "1") & (Cat_n > 40))), 
+       aes(y = meanRT, x = Cat_n, color = Want2See)) + 
+  stat_summary(fun.y=mean,geom="point", size = 3.6) +
+  stat_summary(fun.data = mean_cl_normal, fun.args = list(mult = 1), geom = "errorbar",width=1) +
+  facet_wrap( ~ ChoiceF) +
+  theme(axis.text.x  = element_text(size=14,color="black"),
+        axis.text.y  = element_text(size=14,color="black"),
+        axis.title.x = element_text(size=15),
+        axis.title.y = element_text(size=15),
+        strip.background = element_blank(),
+        legend.position="none") +
+  ylab("RT(s)") + xlab("% Scene") +
+  scale_colour_manual(values=myPalette) +
+  coord_cartesian(ylim = c(1,2.5)) 
+
+temp = filter(summRTcon, Con_Rev == "Comp")
+
+Comp.plot = ggplot(subset(temp, ((ChoiceF == "0") & (Cat_n < 60)) | ((ChoiceF == "1") & (Cat_n > 40))), 
+       aes(y = meanRT, x = Cat_n, color = Want2See)) + 
+  stat_summary(fun.y=mean,geom="point", size = 3.6) +
+  stat_summary(fun.data = mean_cl_normal, fun.args = list(mult = 1), geom = "errorbar",width=1) +
+  facet_wrap( ~ ChoiceF) +
+  theme(axis.text.x  = element_text(size=14,color="black"),
+        axis.text.y  = element_text(size=14,color="black"),
+        axis.title.x = element_text(size=15),
+        axis.title.y = element_text(size=15),
+        strip.background = element_blank(),
+        legend.position="none") +
+  ylab("RT(s)") + xlab("% Scene") +
+  scale_colour_manual(values=myPalette) +
+  coord_cartesian(ylim = c(1,2.5)) 
+
+plot_grid(Coop.plot, Comp.plot, nrow = 2)
+```
+
+**Figure S4.** Pattern of reaction times were not significantly different between the Cooperation and Competition conditions. There was neither a main effect of Condition (b = 0.003, SE = 0.02, t(31) = 0.21, p = 0.832) nor an interaction effect of Condition and Response (b = 0.02, SE = 0.02, t(28) = 1.27, p = 0.205) on reaction times, suggesting that overall reaction times did not differ significantly between conditions. More importantly, the triple interaction between Condition, Motivation Consistent Category, and Response on reaction times was not significant (b = 0.010, SE = 0.02, t(24) = 0.328, p = 0.328), indicating that the effects of motivation on reaction time were comparable between the two conditions. Trial types with less than 24 trials (i.e. 1% of total trials in each condition) were excluded from the plot because there were too few trials for reliable estimates and they tend to come from a small number of participants. Blue: Motivated to see scene; Red: Motivated to see face. Error bars indicate between-subject SEM. 
+
+
+
+

@@ -1,8 +1,7 @@
 ---
-title: "Modeling Results"
+title: "Figure 3"
 output: html_document
 ---
-This code loads and plots the posterior estimates of the model parameters. For the estimation of model parameters using HDDM, see the iPython notebook: HDDM.ipynb
 
 ```{r set-up, warning=FALSE, message=FALSE, results="hide"}
 # Clear workspace
@@ -16,200 +15,131 @@ packages = c("tidyr","dplyr","ggplot2","lme4","lmerTest","Hmisc","car","lmtest",
 ipak(packages)
 
 # Redo long calculations
-redo_calc = 0;
+redo_calc = 1;
+
+## Load in Striatum Betas
+featquery_res = read.csv("../data/roi_zstat.csv")
+featquery_res$Sub = as.factor(featquery_res$Sub)
+
+## Load in individual subject parameters
+full.model.subj_parm = read.csv("../data/model_outputs/subject_parms/simpleFull_subjparms.csv")
 ```
 
-### Load Data
-```{r load-data}
-# Read data
-AllData = read.csv("../data/AllData.csv")
+### Plot trace
 
-# Convert to factors
-AllData$Sub = as.factor(AllData$Sub)
-AllData$Pred = as.factor(AllData$Pred)
-AllData$Want2See = as.factor(AllData$Want2See)
-AllData$Con_Rev = factor(AllData$Con, levels = c('Coop','Comp'))
-
-# Load psychometric results (see Fig. 2 code)
-load("long_calc/ConditionxBet.Rda")
-
-# Extract random slope of the interaction
-intSlope = unlist(coef(res)$Sub$`ConCoop:Pred1`)
-
-# Create datafrom for each subject's bias, and order in descending order
-SubBias = as.data.frame(intSlope)
-SubBias$Sub = unique(AllData$Sub)
-SubBias = SubBias[order(-SubBias$intSlope), ]
-```
-
-### Parameter Estimates
 ```{r}
 # Read in posterior distribution of each parameter
-allParms = read.csv("../data/HDDM/full_100000_ParmsTrace.csv",header = F) 
-colnames(allParms) = c("v_-1_-50","v_1_-50",
-                       "v_-1_-15","v_1_-15",
-                       "v_-1_-10","v_1_-10",
-                       "v_-1_-5","v_1_-5",
-                       "v_-1_0","v_1_0",
-                       "v_-1_5","v_1_5",
-                       "v_-1_10","v_1_10",
-                       "v_-1_15","v_1_15",
-                       "v_-1_50","v_1_50",
-                       "z_-1","z_1",
-                       "a","t")
+d0 = read.csv("../data/model_outputs/trace_processed/simpleFull_trace_all.csv",header = F) 
+colnames(d0) = c("a","t",
+                       "exp_z_mot","exp_z_int",
+                       "v_bias","v_stim","v_int")
 
-a_trace = select(allParms,contains("a"))
-t_trace = select(allParms,contains("t"))
-z_trace = select(allParms,contains("z"))
-v_trace = select(allParms,contains("v"))
+d0$z_int = 1/(1+exp(-d0$exp_z_int))
+d0$z_bias = d0$exp_z_mot
 
-z_bias_trace = z_trace;
+d0 = dplyr::select(d0, z_bias, v_bias)
 
-rm(allParms)
-rm(a_trace)
-rm(t_trace)
-```
-
-```{r}
-# Get z_trace
-z_trace = gather(z_trace,key = "parm", value = "value") %>% 
-  separate("parm", sep = "_", into = c("parm","mot"))
-
-# Get v_trace
-v_trace = mutate(v_trace, 
-                 `vbias_-1` = 0.025 * `v_-1_-50` + 
-                              0.075 * `v_-1_-15` + 
-                              0.125 * `v_-1_-10` + 
-                              0.175 * `v_-1_-5` +
-                              0.200 * `v_-1_0` +
-                              0.175 * `v_-1_5` +
-                              0.125 * `v_-1_10` +
-                              0.075 * `v_-1_15` +
-                              0.025 * `v_-1_50`,
-                  `vbias_1` = 0.025 * `v_1_-50` + 
-                              0.075 * `v_1_-15` + 
-                              0.125 * `v_1_-10` + 
-                              0.175 * `v_1_-5` +
-                              0.200 * `v_1_0` +
-                              0.175 * `v_1_5` +
-                              0.125 * `v_1_10` +
-                              0.075 * `v_1_15` +
-                              0.025 * `v_1_50`) %>%
-  select(contains("bias"))
-                 
-v_trace = gather(v_trace,key = "parm", value = "value") %>% 
-  separate("parm", sep = "_", into = c("parm","mot"))             
-```
-
-```{r fig.width = 9, fig.height = 5}
-# Plot z
-plot.z_trace = ggplot(z_trace,aes(value, y = ..scaled.., fill = mot, color=mot)) +
-  geom_density(alpha = 0.2, adjust = 5, size = 0) +
-  geom_line(stat = "density", adjust = 5, size = 3) +
-  scale_colour_manual(values=myPalette) +
-  ggtitle("Starting Point") +
-  theme(legend.position = "none",
-        panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank(), 
-        axis.line = element_line(colour = "black"),
-        axis.text.x  = element_text(size=13,color="black"),
-        axis.text.y  = element_blank(),
-        axis.title.x = element_text(size=15),
-        axis.title.y = element_text(size=15),
-        strip.background = element_blank(),
-        strip.text.x = element_text(face = "bold", size = 15),
-        plot.title = element_text(hjust = 0.5,face = "bold", size = (15))) +
-  xlab("z") + ylab("Probability") +
-  coord_cartesian(ylim=c(0, 1.15))
-
-# Plot z difference
-z_diff = z_trace$value[z_trace$mot=="1"] - z_trace$value[z_trace$mot=="-1"]
-z_95 = quantile(z_diff,0.05)
+# z_bias
+z_95 = quantile(d0$z_bias,0.05)
+z_diff = d0$z_bias
 z_diff = as.data.frame(z_diff)
+
 plot.z_diff = 
   ggplot(z_diff,aes(z_diff, y = ..scaled..)) +
   geom_density(alpha = 0.2, adjust = 5, size = 0) +
-  geom_line(stat = "density", adjust = 5, size = 3) +
-  geom_vline(xintercept = z_95, size = 1.5) +
-  geom_vline(xintercept = 0, size = 1.5, linetype="dashed") + 
+  geom_line(stat = "density", adjust = 5, size = 2.5) +
+  #geom_vline(xintercept = z_95, size = 1) +
+  geom_vline(xintercept = 0, size = 1, linetype="dashed") + 
   scale_colour_manual(values=myPalette) +
-  ggtitle("z bias") +
+  #ggtitle("z bias") +
   theme(legend.position = "none",
         panel.grid.major = element_blank(), 
         panel.grid.minor = element_blank(),
         panel.background = element_blank(), 
         axis.line = element_line(colour = "black"),
-        axis.text.x  = element_text(size=13,color="black"),
-        axis.text.y  = element_blank(),
-        axis.title.x = element_text(size=15),
-        axis.title.y = element_text(size=15),
+        axis.text.x  = element_text(size=14,color="black"),
+        axis.text.y  = element_text(size=14,color="black"),
+        axis.title.x = element_text(size=14),
+        axis.title.y = element_text(size=14),
         strip.background = element_blank(),
         strip.text.x = element_text(face = "bold", size = 15),
         plot.title = element_text(hjust = 0.5,face = "bold", size = (15))) +
-  xlab("z_bias") + ylab("Probability") +
-  coord_cartesian(ylim=c(0, 1.1))
+  xlab("z_bias") + ylab("Density") +
+  coord_cartesian(ylim=c(0, 1.1)) +
+  scale_y_continuous(breaks=seq(0,1,0.25)) +
+  scale_x_continuous(breaks=c(0, 0.1, 0.1))
 
-# Plot v
-plot.v_trace = ggplot(v_trace,aes(value, y = ..scaled.., fill = mot, color=mot)) +
-  geom_density(alpha = 0.2, adjust = 5, size = 0) +
-  geom_line(stat = "density", adjust = 5, size = 3) +
-  scale_colour_manual(values=myPalette) +
-  ggtitle("Drift Rate") +
-  theme(legend.position = "none",
-        panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank(), 
-        axis.line = element_line(colour = "black"),
-        axis.text.x  = element_text(size=13,color="black"),
-        axis.text.y  = element_blank(),
-        axis.title.x = element_text(size=15),
-        axis.title.y = element_text(size=15),
-        strip.background = element_blank(),
-        strip.text.x = element_text(face = "bold", size = 15),
-        plot.title = element_text(hjust = 0.5,face = "bold", size = (15))) +
-  xlab("v") + ylab("Probability") +
-  coord_cartesian(ylim=c(0, 1.15))
+# Shade area
+plot_data <- as.data.frame(ggplot_build(plot.z_diff)$data[2])
+plot.z_diff = plot.z_diff+ 
+  geom_area(data = subset(plot_data, x > 0.001), aes(x=x, y=y-0.02), fill="grey", alpha = 0.8) + 
+  geom_line(stat = "density", adjust = 5, size = 2.5)
 
-# Plot v difference
-v_diff = v_trace$value[v_trace$mot=="1"] - v_trace$value[v_trace$mot=="-1"]
-v_95 = quantile(v_diff,0.05)
+# v_bias
+v_95 = quantile(d0$v_bias,0.05)
+v_diff = d0$v_bias
 v_diff = as.data.frame(v_diff)
 
 plot.v_diff = 
   ggplot(v_diff,aes(v_diff, y = ..scaled..)) +
   geom_density(alpha = 0.2, adjust = 5, size = 0) +
-  geom_line(stat = "density", adjust = 5, size = 3) +
-  geom_vline(xintercept = v_95, size = 1.5) +
-  geom_vline(xintercept = 0, size = 1.5, linetype="dashed") + 
+  geom_line(stat = "density", adjust = 5, size = 2.5) +
+  # geom_vline(xintercept = v_95, size = 1) +
+  geom_vline(xintercept = 0, size = 1, linetype="dashed") + 
   scale_colour_manual(values=myPalette) +
-  ggtitle("v bias") +
+  #ggtitle("v bias") +
   theme(legend.position = "none",
         panel.grid.major = element_blank(), 
         panel.grid.minor = element_blank(),
         panel.background = element_blank(), 
         axis.line = element_line(colour = "black"),
-        axis.text.x  = element_text(size=13,color="black"),
-        axis.text.y  = element_blank(),
-        axis.title.x = element_text(size=15),
-        axis.title.y = element_text(size=15),
+        axis.text.x  = element_text(size=14,color="black"),
+        axis.text.y  = element_text(size=14,color="black"),
+        axis.title.x = element_text(size=14),
+        axis.title.y = element_text(size=14),
         strip.background = element_blank(),
         strip.text.x = element_text(face = "bold", size = 15),
         plot.title = element_text(hjust = 0.5,face = "bold", size = (15))) +
-  xlab("z_bias") + ylab("Probability") +
-  coord_cartesian(ylim=c(0, 1.1))
+  xlab("v_bias") + ylab("Density") +
+  coord_cartesian(ylim=c(0, 1.1)) +
+  scale_y_continuous(breaks=seq(0,1,0.25))
+
+# Shade area
+plot_data <- as.data.frame(ggplot_build(plot.v_diff)$data[2])
+plot.v_diff = plot.v_diff+ 
+  geom_area(data = subset(plot_data, x > 0.001), aes(x=x, y=y-0.02), fill="grey", alpha = 0.8) + 
+  geom_line(stat = "density", adjust = 5, size = 2.5)
+
+z_bias = mean(z_diff$z_diff < 0)
+cat("P_z(S > F) = ", 1 - z_bias)
+
+v_bias = mean(v_diff$v_diff < 0)
+cat("P_v(S > F) = ", 1 - v_bias)
 ```
+
+
+```{r fig.width = 3, fig.height = 3}
+# Plot DIC
+model.DIC = NULL
+model.DIC$Model = c('z & v','z','v',"null")
+model.DIC$DIC = c(12535,12619,12546,12735) # See HDDM Analysis 
+model.DIC = as.data.frame(model.DIC)
+model.DIC$Model = factor(model.DIC$Model, levels = c('z & v','z','v','null'))
+
+DIC.fig = ggplot(model.DIC, aes(x = Model, y = DIC)) + 
+  geom_bar(stat = "identity",width = 0.3) +
+  coord_cartesian(ylim=c(12500, 12750)) +
+    theme(axis.text.x  = element_text(size=13,color="black"),
+        axis.text.y  = element_text(size=13,color="black"),
+        axis.title.x = element_text(size=15),
+        axis.title.y = element_text(size=15),
+        strip.text.x = element_text(face = "bold", size = 15))
+
+```
+
 
 ```{r fig.width = 6, fig.height = 5}
-# Stats
-z_bias = mean(z_trace$value[z_trace$mot=="1"] < z_trace$value[z_trace$mot=="-1"])
-cat("P_z(S > F) = ", z_bias)
-
-v_bias = mean(v_trace$value[v_trace$mot=="1"] < v_trace$value[v_trace$mot=="-1"])
-cat("P_v(S > F) = ", v_bias)
-
-# Plot everything
-plot_grid(plot.z_trace, plot.z_diff, plot.v_trace, plot.v_diff, labels = c('B','C','D','E'), ncol = 2)
+plot_grid(DIC.fig, plot.z_diff, plot.v_diff, nrow = 2, labels = c('B','C','D'))
 ```
 
-**Modeling Results.** **B.** Posterior distribution of z estimated by the z & v model. z was higher when participants were motivated to see more scene than when participants were motivated to see more face. **C.** Posterior distribution of the bias in starting point. Dashed line indicates 0 (no bias) while the solid line indicates the 5th percentile of the distribution. More than 95% of the distribution was greater than 0, indicating the bias was credibly above 0. **D.** Posterior distribution of v estimated by the z & v model. v was higher when participants were motivated to see more scene than when participants were motivated to see more face. **E.** Posterior distribution of the bias in starting point. More than 95% of the distribution was greater than 0, indicating the bias was credibly above 0.
+**B.** The z & v model has the lowest DIC score, indicating that it provides the best fit to participants’ data. See Table S1 for best-fit values and summary statistics of all model parameters. **C.** Posterior distribution of the starting point bias (zbias). Dashed line indicates 0 (no bias), More than 95% of the distribution was greater than 0, indicating credible evidence of a starting point bias. **D.** Posterior distribution of the drift bias (vbias). More than 95% of the distribution was greater than 0, indicating credible evidence of a drift bias. 

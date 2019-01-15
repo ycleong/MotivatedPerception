@@ -1,5 +1,5 @@
 ---
-title: "Motivation biases face and scene selective neural activity during visual categorization."
+title: "NAcc activity is associated with response bias"
 output: html_document
 ---
 
@@ -15,10 +15,17 @@ packages = c("tidyr","dplyr","ggplot2","lme4","lmerTest","Hmisc","car","lmtest",
 ipak(packages)
 
 # Redo long calculations
-redo_calc = 0;
+redo_calc = 1;
+
+## Load in Striatum Betas
+featquery_res = read.csv("../data/roi_zstat.csv")
+featquery_res$Sub = as.factor(featquery_res$Sub)
+
+## Load in individual subject parameters
+full.model.subj_parm = read.csv("../data/model_outputs/subject_parms/simpleFull_subjparms.csv")
 ```
 
-#### Load Data
+### Load Data
 ```{r load-data}
 # Read data
 AllData = read.csv("../data/AllData.csv")
@@ -34,88 +41,32 @@ AllData_ValidTrials = filter(AllData, !(is.na(Choice)))
 load("long_calc/ConditionxBet.Rda")
 ```
 
-####	Motivation biases category selective neural activity during visual categorization 
+#### NAcc response to Motivation Consistent trials was higher in High Bias participants than Low Bias participants
 ```{r}
-## Median split participants
+# Extract random slope of the interaction
 intSlope = unlist(coef(res)$Sub$`ConCoop:Pred1`)
-SubBias = as.data.frame(intSlope)
-SubBias$Sub = unique(AllData$Sub)
-SubBias$medianBehave = SubBias$intSlope > median(SubBias$intSlope)
 
-BiasedData =  subset(AllData_ValidTrials, Sub %in% SubBias$Sub[SubBias$medianBehav == "TRUE"])
-UnbiasedData = subset(AllData_ValidTrials, Sub %in% SubBias$Sub[SubBias$medianBehav == "FALSE"])
+# Create datafrom for each subjec'ts bias, and order in descending order
+SubBias_Striatum = as.data.frame(intSlope)
+SubBias_Striatum$Sub = unique(AllData$Sub)
 
-if (redo_calc) {
-  res.prob = lmer(Prob ~ Cat_n_z  + Con * Pred + (Con * Pred |Sub), AllData_ValidTrials)
-  res.prob.bias = lmer(Prob ~ Cat_n_z  + Con * Pred + (Con * Pred |Sub), BiasedData)
-  res.prob.bias.coop = lmer(Prob ~ Cat_n_z  + Pred + (Pred |Sub), subset(BiasedData, Con == "Coop"))
-  res.prob.bias.comp = lmer(Prob ~ Cat_n_z  + Pred + (Pred |Sub), subset(BiasedData, Con == "Comp"))
-  
-  res.prob.unbias = lmer(Prob ~ Cat_n_z  + Con * Pred + (Con * Pred |Sub), UnbiasedData)
-  res.prob.unbias.coop = lmer(Prob ~ Cat_n_z  + Pred + (Pred |Sub), subset(UnbiasedData, Con == "Coop"))
-  res.prob.unbias.comp = lmer(Prob ~ Cat_n_z  + Pred + (Pred |Sub), subset(UnbiasedData, Con == "Comp"))
+PE = select(featquery_res, Sub, accumbens) 
 
-  
-  save(res.prob, res.prob.bias, res.prob.bias.coop, res.prob.bias.comp, res.prob.unbias, res.prob.unbias.coop, res.prob.unbias.comp, file="long_calc/NeuralBias.Rda")
-} else {
-  load("long_calc/NeuralBias.Rda")
-  }
+SubBias_Striatum = left_join(SubBias_Striatum ,PE) %>% 
+  select(Sub,intSlope,accumbens)
 
-# Full sample
-summary(res.prob)
-
-# High Bias participants
-summary(res.prob.bias)
-
-# Low Bias Participants
-summary(res.prob.unbias)
-
-# Bias Plot
-plot.prob.bias = ggplot(BiasedData, aes(x=Cat_n,y=Prob,color = Pred)) +
-  stat_summary(fun.y=mean,geom="point",size=2) +
-  stat_summary(fun.data = mean_cl_normal, geom = "errorbar",width=1,
-               fun.args = list(mult = 1)) + 
-  theme(legend.position="none",
-      panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank(), 
-        axis.line = element_line(colour = "black"),
-        axis.text.x  = element_text(size=13,color="black"),
-        axis.text.y  = element_text(size=13,color="black"),
-        axis.title.x = element_text(size=15),
-        axis.title.y = element_text(size=13),
-        strip.background = element_blank(),
-        strip.text.x = element_text(face = "plain", size = 13)) +
-  xlab("% Scene") + ylab("Classifier Prob(Scene)") +
-  facet_grid(~Con_Rev, labeller=labeller(Con_Rev = c("Coop" = "Cooperation","Comp" = "Competition"))) +
-  scale_colour_manual(values=myPalette) + 
-  ggtitle("High Bias")
-
-# Unbias plot
-plot.prob.unbias = ggplot(UnbiasedData, aes(x=Cat_n,y=Prob,color = Pred)) +
-  stat_summary(fun.y=mean,geom="point",size=2) +
-  stat_summary(fun.data = mean_cl_normal, geom = "errorbar",width=1,
-               fun.args = list(mult = 1)) + 
-  theme(legend.position="none",
-      panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank(), 
-        axis.line = element_line(colour = "black"),
-        axis.text.x  = element_text(size=13,color="black"),
-        axis.text.y  = element_text(size=13,color="black"),
-        axis.title.x = element_text(size=15),
-        axis.title.y = element_text(size=13),
-        strip.background = element_blank(),
-        strip.text.x = element_text(face = "plain", size = 13)) +
-  xlab("% Scene") + ylab("Classifier Prob(Scene)") + 
-  facet_grid(~Con_Rev, labeller=labeller(Con_Rev = c("Coop" = "Cooperation","Comp" = "Competition"))) +
-  scale_colour_manual(values=myPalette) + 
-  ggtitle("Low Bias")
-
+# Median Split
+SubBias_Striatum$medianBehav = SubBias_Striatum$intSlope > 
+  median(SubBias_Striatum$intSlope)
+SubBias_Striatum$medianBehav = factor(SubBias_Striatum$medianBehav, levels = c("TRUE", "FALSE"))
 ```
 
-#### Neural bias was correlated with motivational bias
-```{r fig.width = 9, fig.height=8}
+### NAcc response is associated with bias in starting point but not drift rate 
+```{r fig.width = 9, fig.height = 3.5}
+full.model.subj_parm$Sub = as.factor(full.model.subj_parm$Sub)
+full.model.subj_parm = left_join(full.model.subj_parm,SubBias_Striatum)
+
+# Calculate Neural Bias
 NeuralBias = NULL
 for (s in unique(AllData$Sub)){
   thisData = NULL
@@ -126,64 +77,101 @@ for (s in unique(AllData$Sub)){
   NeuralBias = rbind(NeuralBias,thisData)
 }
 NeuralBias = as.numeric(NeuralBias)
-cor.test(NeuralBias, intSlope)
 
-correlationPlot = as.data.frame(cbind(NeuralBias, intSlope))
-
-# Plot behavioral bias
-plot.prob.behav = ggplot(data = correlationPlot, aes(x = NeuralBias, y = intSlope)) +
-  geom_point() +
-  geom_smooth(method='lm',se=FALSE, colour="black") +
-    theme(legend.position="none",
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank(),
-        axis.text.x  = element_text(size=13,color="black"),
-        axis.text.y  = element_text(size=13,color="black"),
-        axis.line = element_line(colour = "black"),
-        strip.background = element_blank(),
-        strip.text.x = element_text(face = "bold"),
-                plot.title = element_text(face = "plain", size = (15))) +
-  coord_cartesian(ylim=c(-1.5, 5)) +
-  ylab("Motivational Bias") + xlab("Neural Bias")
-
+# Add Neural Bias
+full.model.subj_parm$NeuralBias = NeuralBias
 ```
 
-### Participants neural bias was associated with perceptual bias but not response bias
-```{r fig.width = 9, fig.height=8}
-# Load model parameters
-full.model.subj_parm = read.csv("../data/fullmodelsubjparm.csv")
-full.model.subj_parm$Sub = as.factor(full.model.subj_parm$Sub)
-full.model.subj_parm = left_join(full.model.subj_parm,SubBias)
-full.model.subj_parm$NeuralBias = NeuralBias
+```{r}
+# Run GLM
+lm.NAcc = summary(lm(scale(accumbens) ~ scale(z) + scale(drift_bias), full.model.subj_parm))
+lm.NAcc
+lm.NAcc.coef = lm.NAcc$coefficients
 
-# Plot regression coefficients 
-lm.neuralbias = summary(lm(scale(NeuralBias) ~ scale(drift_bias) + scale(z), data = full.model.subj_parm))
-lm.neuralbias
-lm.neuralbias.coef = lm.neuralbias$coefficients
-
+# Extract coefficents 
 reg_coef = NULL
 reg_coef$parm = c('z_bias','v_bias')
-reg_coef$value = c(lm.neuralbias.coef["scale(z)","Estimate"],lm.neuralbias.coef["scale(drift_bias)","Estimate"])
-reg_coef$SE = c(lm.neuralbias.coef["scale(z)","Std. Error"],lm.neuralbias.coef["scale(drift_bias)","Std. Error"])
+reg_coef$value = c(lm.NAcc.coef["scale(z)","Estimate"],lm.NAcc.coef["scale(drift_bias)","Estimate"])
+reg_coef$SE = c(lm.NAcc.coef["scale(z)","Std. Error"],lm.NAcc.coef["scale(drift_bias)","Std. Error"])
 reg_coef = as.data.frame(reg_coef)
 reg_coef$parm = factor(reg_coef$parm, levels = c('z_bias','v_bias'))
 
-plot.reg_coef = ggplot(reg_coef) +
+# NAcc ~ Z bias + V Bias
+plot.A = ggplot(reg_coef) +
   geom_bar(aes(x = parm, y = value), stat = "identity", width = 0.3) +
   geom_errorbar(aes(x = parm, ymin = value - SE, ymax = value + SE), stat = "identity", width = 0.1) +
-      theme(axis.text.x  = element_text(size=15,color="black"),
-        axis.text.y  = element_text(size=13,color="black"),
+      theme(axis.text.x  = element_text(size=10,color="black"),
+        axis.text.y  = element_text(size=10,color="black"),
         axis.title.x = element_blank(),
-        axis.title.y = element_text(size=15),
-        strip.text.x = element_text(face = "bold", size = 15)) +
+        axis.title.y = element_text(size=10),
+        strip.text.x = element_text(face = "bold", size = 10)) +
   ylab("Estimate") +
-  coord_cartesian(ylim=c(0, 0.7)) +
-  ggtitle("Neural Bias ~ drift_bias + z_bias + e")
+  coord_cartesian(ylim=c(-0.2, 0.82)) +
+  scale_y_continuous(breaks = seq(-0.25, 0.75, 0.25))
 
-# Plot all
-plot_grid(plot.prob.bias,plot.prob.unbias,plot.prob.behav, plot.reg_coef, labels = c('A','','B', 'C'), ncol = 2)
 ```
 
-**Motivation biases face and scene selective neural activity during visual categorization.** **A.** Classifier probability that the presented image was a scene rather than a face based on the BOLD response in the ventral visual stream, separately for participants with high and low behavioral bias. Blue dots: teammate or opponent betting that the next image will be scene; Red dots: teammate or opponent betting that the next image will be a face. For High Bias participants, scene probability was higher when participants were motivated to see a scene (i.e. teammate bets scene or opponent bets face) than when participants were motivated to see a face (i.e. teammate bets face or opponent bets scene). There was no effect of motivation in Low Bias participants. **B.** The effect of motivation on classifier probability (Neural Bias) was correlated with the extent to which a participant was bias in his or her categorizations (Motivational Bias). **C.** Regression coefficients of the response bias (βz) and perceptual bias (βv) when both were entered into the same model to predict participants’ neural bias. Only the perceptual bias was significantly associated with participants’ neural bias. 
+```{r}
+# Load NAcc Timecourse
+NAcc_tc = read.csv('../data/NAcc_timecourse.csv')
+NAcc_tc$Sub = as.factor(NAcc_tc$Sub)
+NAcc_tc$MotCon = as.factor(NAcc_tc$MotCon)
+NAcc_tc = left_join(NAcc_tc,SubBias_Striatum)
 
+NAcc_tc_summary = group_by(NAcc_tc,MotCon,Time) %>%
+  summarise(meanActivity = mean(Activity), se = sem(Activity))
+
+# Convert TR to seconds
+NAcc_tc_summary$Time = NAcc_tc_summary$Time * 2
+
+# Plot NAcc Timecourse for High Bias subjects
+plot.B = ggplot(subset(NAcc_tc_summary), 
+                      aes(x=Time, y=meanActivity, linetype=MotCon)) +
+  geom_line(size = 1) +
+    theme(legend.position="none",
+          axis.text.x  = element_text(size=10,color="black"),
+      axis.text.y  = element_text(size=10,color="black"),
+      axis.title.x = element_blank(),
+      axis.title.y = element_text(size=10),
+      strip.text.x = element_blank()) +
+  geom_errorbar(aes(ymin=meanActivity-se, ymax=meanActivity+se), width=.3) +
+  coord_cartesian(ylim=c(-0.12, 0.20)) +
+  scale_x_continuous(breaks=seq(-8,8,2)) +
+  xlab("Time (s)") + ylab("NAcc Activity")
+```
+
+
+```{r}
+NAcc_tc_diff = 
+  spread(NAcc_tc,MotCon,Activity) %>%
+  mutate(diff = `1` - `2`)
+
+NAcc_diff_summary = group_by(NAcc_tc_diff,Time) %>%
+  summarise(meanDiff = mean(diff), se = sem(diff))
+
+NAcc_diff_summary$Time = NAcc_diff_summary$Time * 2
+
+plot.C = ggplot(NAcc_diff_summary, 
+                      aes(x=Time, y=meanDiff)) +
+  geom_line(size = 1) +
+    theme(legend.position="none",
+          axis.text.x  = element_text(size=10,color="black"),
+      axis.text.y  = element_text(size=10,color="black"),
+      axis.title.x = element_blank(),
+      axis.title.y = element_text(size=10),
+      strip.text.x = element_blank()) +
+  geom_errorbar(aes(ymin=meanDiff-se, ymax=meanDiff+se), width=.3) +
+  coord_cartesian(ylim=c(-0.12, 0.20)) +
+  scale_x_continuous(breaks=seq(-8,8,2)) +
+  xlab("Time (s)") + ylab("Difference")
+
+```
+
+```{r fig.width = 7.1, fig.height = 2}
+plot_grid(plot.A, plot.B, plot.C, labels = c("A","B","C"), rel_widths = c(0.24, 0.38, 0.38), nrow = 1)
+```
+
+**Figure 6.** NAcc activation is associated with response bias. Linear regression predicting participants’ NAcc response from the model estimates of their starting point bias (zbias) and drift bias (vbias). The regression coefficient for zbias was significant but that for vbias was not. **B.** NAcc timecourse time-locked to image onset, corrected for hemodynamic lag by shifting the BOLD data by 4 seconds. The trial starts with the “Waiting for Teammate/Opponent” screen at -6s. The teammate or opponent makes a bet at -4s, which remains on the screen for 4s. The image is presented at 0s and stays on screen for 4s. NAcc activity was significantly higher on Motivation Consistent trials than Motivation Inconsistent trials from 2s before image onset until image offset. Solid lines: Motivation Consistent trials. Dashed lines: Motivation Inconsistent trials. **C.**  Difference in activity between Motivation Consistent and Motivation Inconsistent trials peaked before image offset. *: p < 0.05, additional statistics reported in Table S2.
+
+
+      

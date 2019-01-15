@@ -1,5 +1,5 @@
 ---
-title: "RT and Confidence Analysis"
+title: "Figure S2"
 output: html_document
 ---
 
@@ -11,134 +11,167 @@ rm(list = ls())
 source('helper_functions.R')
 
 # Import libraries
-packages = c("tidyr","dplyr","ggplot2","lme4","lmerTest","Hmisc","car","lmtest","Rarity","cowplot")
+packages = c("tidyr","dplyr","ggplot2","lme4","lmerTest","Hmisc","car","lmtest","Rarity","cowplot","MASS",'sfsmisc')
 ipak(packages)
 
 # Redo long calculations
 redo_calc = 0;
+
 ```
 
-### Load Data
+
 ```{r load-data}
 # Read data
-AllData = read.csv("../data/AllData.csv")
+AllData = read.csv("../data/AllData_inlab.csv")
 
 # Convert to factors
 AllData$Sub = as.factor(AllData$Sub)
 AllData$Pred = as.factor(AllData$Pred)
 AllData$Want2See = as.factor(AllData$Want2See)
 AllData$Con_Rev = factor(AllData$Con, levels = c('Coop','Comp'))
-AllData_ValidTrials = filter(AllData, !(is.na(Choice)))
-
-# Load psychometric results (see Fig. 2 code)
-load("long_calc/ConditionxBet.Rda")
+AllData$Cat_n_z = as.numeric((scale(AllData$Cat_n)))
 ```
 
-```{r warning=F}
-AllData$Conf = as.numeric(as.character(AllData$Conf))
-AllData$RT = as.numeric(as.character(AllData$RT))
-AllData$CatDiff = abs(50 - AllData$Cat_n)*2
+```{r Cooperation-Behav}
+# Cooperation Condition: Does motivation bias participants' perceptual judgments?
+thisData = subset(AllData, Con == "Coop")
+summary(glmer(Choice ~ Cat_n_z + Pred + (Pred |Sub), thisData, family = binomial(link="probit")))
+```
 
-if (redo_calc){
+```{r Competition-Behav}
+# Competition Condition: Does motivation bias participants' perceptual judgments?
+thisData = subset(AllData, Con == "Comp")
+summary(glmer(Choice ~ Cat_n_z + Pred + (Pred |Sub), thisData, family = binomial(link="probit")))
+```
 
-# Confidence data
-res.conf = lmer(Conf ~ MotCon + CatDiff + (MotCon + CatDiff |Sub), AllData)
+```{r Interaction-Behav}
+# Condition x Bet Interaction
+if (redo_calc) {
+  res = glmer(Choice ~ Cat_n_z + Con * Pred + (Con * Pred|Sub), AllData, 
+              family = binomial(link="probit"), control = glmerControl(calc.derivs = FALSE))
+  
+  save(res,file="long_calc/ConditionxBet_Inlab.Rda")
 
-# RT data
-res.rt = lmer(log(RT) ~ MotCon + CatDiff + (MotCon + CatDiff |Sub), AllData)
-
-save(res.conf, res.rt, file="long_calc/RTConfidence.Rda")
-
-}else{
-    
-  load("long_calc/RTConfidence.Rda")
+} else {
+  load("long_calc/ConditionxBet_Inlab.Rda")
 }
-
-# Confidence Analysis
-summary(res.conf)
-
-# RT analysis
-summary(res.rt)
+summary(res)
 ```
 
-### RT and Confidence plots
-```{r fig.width = 8.5, fig.height = 6.5, warning=F, echo = F, eval = T}
-suppPalette = c( "#009E73","#D55E00")
+```{r plot-behav, fig.width = 9, fig.height = 3.5, warning=F}
+thisData = AllData
+thisData$Pred = recode(thisData$Pred,"0='Face';1='Scene'")
 
-# Summarize confidence
-summConf= subset(AllData, !is.na(Conf)) %>%
-  group_by(Sub, MotCon, CatDiff) %>%
-  summarise(Conf = mean(Conf))
-  
-# Plot Confidence 
-conf_1 = 
-  ggplot(subset(summConf, CatDiff < 100), aes(y = Conf, x = CatDiff, color = MotCon)) + 
-  stat_summary(fun.y=mean,geom="point", size = 3.6) +
-  stat_summary(fun.data = mean_cl_normal, fun.args = list(mult = 1), geom = "errorbar",width=1) +
-  coord_cartesian(ylim=c(3, 5)) +
-  theme(axis.text.x  = element_text(size=14,color="black"),
-        axis.text.y  = element_text(size=14,color="black"),
+# Run GLM (for visualization only, do not use for inference)
+res.glm = glm(Choice ~ Cat_n + Con_Rev * Pred, thisData, family = binomial(link="probit"))
+
+# Create predicted dataset
+pred.data = data.frame(Cat_n = rep(seq(0, 100, len = 101),4),
+                       Con_Rev = c(rep("Coop",202),rep("Comp",202)),
+                       Pred = c(rep("Face",101),rep("Scene",101),rep("Face",101),rep("Scene",101))
+                       )
+pred.data$Choice = predict.glm(res.glm,pred.data,type = "response")
+
+# Compute Subject Average
+sub_avg = group_by(thisData,Sub,Con_Rev,Cat_n,Pred) %>% 
+    summarise(Avg = mean(Choice, na.rm=T), SEM = sem(Choice))
+
+# Plot group average with fit
+plot.behav = ggplot() +
+  stat_summary(data = sub_avg, aes(x=Cat_n,y=Avg,color = Pred),
+               fun.y=mean,geom="point",size=2.5) +
+  stat_summary(data = sub_avg, aes(x=Cat_n,y=Avg,color = Pred),
+               fun.data = mean_cl_normal, geom = "errorbar",width=1,
+               fun.args = list(mult = 1)) + 
+  geom_line(data = pred.data, aes(x=Cat_n,y=Choice,color= Pred),size=1) +
+  theme(legend.position="none",
+      panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(), 
+        axis.line = element_line(colour = "black"),
+        axis.text.x  = element_text(size=13,color="black"),
+        axis.text.y  = element_text(size=13,color="black"),
         axis.title.x = element_text(size=15),
         axis.title.y = element_text(size=15),
-        legend.position="none") +
-  scale_colour_manual(values=suppPalette ) + 
-  scale_y_continuous(labels=scaleFUN) + 
-  ylab('Confidence')
+        strip.background = element_blank(),
+        strip.text.x = element_text(face = "bold", size = 15)) +
+  xlab("% Scene") + ylab("P(Respond Scene)") +
+  facet_grid(~Con_Rev, labeller=labeller(Con_Rev = c("Coop" = "Cooperation","Comp" = "Competition"))) +
+  scale_colour_manual(values=myPalette)
 
-conf_2 = 
-  ggplot(subset(summConf, CatDiff == 100), aes(y = Conf, x = CatDiff, color = MotCon)) + 
-  stat_summary(fun.y=mean,geom="point", size = 3.3) +
-  stat_summary(fun.data = mean_cl_normal, fun.args = list(mult = 1), geom = "errorbar",width=0.3) +
-  coord_cartesian(ylim=c(1.0, 5.0), xlim = c(98,102)) +
-  theme(axis.line.y =element_blank(),
-      axis.text.y=element_blank(),
-      axis.ticks.y=element_blank(),
-      axis.title.y=element_blank(),
-      axis.text.x  = element_text(size=14,color="black"),
-      axis.title.x = element_text(size=15, color="black")) +
-  scale_x_continuous(breaks=c(100)) +
-  scale_colour_manual(values=suppPalette )
-
-confPlot = plot_grid(conf_1,conf_2, rel_widths = c(5,3))
-
-# Plot Reaction Time
-summRT = subset(AllData, !is.na(Conf)) %>%
-  group_by(Sub, MotCon, CatDiff) %>%
-  summarise(logRT = mean(log(RT)))
-  
-# Plot Confidence 
-RT_1 = 
-  ggplot(subset(summRT, CatDiff < 100), aes(y = logRT, x = CatDiff, color = MotCon)) + 
-  stat_summary(fun.y=mean,geom="point", size = 3.6) +
-  stat_summary(fun.data = mean_cl_normal, fun.args = list(mult = 1), geom = "errorbar",width=1) +
-  coord_cartesian(ylim=c(0, 0.6)) +
-  theme(axis.text.x  = element_text(size=14,color="black"),
-        axis.text.y  = element_text(size=14,color="black"),
-        axis.title.x = element_text(size=15),
-        axis.title.y = element_text(size=15),
-        legend.position="none") +
-  scale_colour_manual(values=suppPalette ) + ylab('logRT') 
-
-RT_2 = 
-  ggplot(subset(summRT, CatDiff == 100), aes(y = logRT, x = CatDiff, color = MotCon)) + 
-  stat_summary(fun.y=mean,geom="point", size = 3.3) +
-  stat_summary(fun.data = mean_cl_normal, fun.args = list(mult = 1), geom = "errorbar",width=0.3) +
-  coord_cartesian(ylim = c(0, 0.6), xlim = c(98,102)) +
-  theme(axis.line.y =element_blank(),
-      axis.text.y=element_blank(),
-      axis.ticks.y=element_blank(),
-      axis.title.y=element_blank(),
-      axis.text.x  = element_text(size=14,color="black"),
-      axis.title.x = element_text(size=15, color="black")) +
-  scale_x_continuous(breaks=c(100)) +
-  scale_colour_manual(values=suppPalette )
-
-
-RT_plot = plot_grid(RT_1,RT_2, rel_widths = c(5,3))
-
-# Combine plots
-plot_grid(RT_plot, confPlot, nrow = 2)
 ```
 
-**Participants were faster and less confident when making motivationally consistent categorizations.** **A.** Participants were faster on Motivation Consistent trials than on Motivation Inconsistent trials (β = -0.05 SE = 0.02, t(27) = -2.80, p = 0.009. **B.** Participants were marginally less confident on Motivation Consistent trials than on Motivation Inconsistent trials (β = -0.08, SE = 0.04, t(28) = -2.04, p = 0.051). In both reaction time and confidence analyses, we controlled for trial difficulty by controlling for the absolute difference in scene and face proportion (|% Scene - % Face|) in each image. Greater |% Scene - % Face| indicates less ambiguity in the image. 
- 
+```{r fig.width = 6, fig.height = 3, warning=F}
+# Extract random slope of the interaction
+intSlope = unlist(coef(res)$Sub$`ConCoop:Pred1`)
+
+# Create datafrom for each subjec'ts bias, and order in descending order
+SubBias = as.data.frame(intSlope)
+SubBias$Sub = unique(AllData$Sub)
+SubBias = SubBias[order(-SubBias$intSlope), ]
+
+plot.behavbias = ggplot(data=SubBias, aes(c(1:28), y=intSlope)) +
+  geom_bar(stat="identity") +
+  theme(legend.position="none",
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), 
+        panel.background = element_blank(), 
+        axis.text.x  = element_blank(),
+        axis.text.y  = element_text(size=14,color="black"),
+        axis.line.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        strip.background = element_blank(),
+        strip.text.x = element_text(face = "bold")) +
+  xlab("Participant") + ylab("Motivational Bias") +
+  scale_y_continuous(breaks=seq(0,4,2)) +
+  coord_cartesian(ylim=c(-1, 5)) 
+  
+```
+
+Check for performance difference: *Will retry this analysis including in-lab data*  
+
+```{r fig.width = 9, fig.height = 6.5, warning=F, echo = T, eval = T}
+# Calculate performance
+performData=subset(AllData,(Cat_n != 50) & !is.na(Choice))
+performData = mutate(performData, outcome = (Choice == 1 & Cat_n > 50) | (Choice == 0 & Cat_n < 50))
+
+# Run correlation
+dPerform = group_by(performData,Sub) %>%
+  summarise(avg= sum(outcome)*0.10)
+
+dPerform = left_join(dPerform,SubBias)
+
+# Make performance plot
+plot.perform = ggplot(dPerform, aes(intSlope, avg)) +
+  geom_point() +
+  geom_smooth(method='rlm',se=FALSE, colour="black") +
+  theme(legend.position="none",
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(), 
+        panel.background = element_blank(), 
+        axis.text.x  = element_text(size=14,color="black"),
+        axis.text.y  = element_text(size=14,color="black"),
+        axis.line = element_line(colour = "black"),
+        strip.background = element_blank(),
+        strip.text.x = element_text(face = "bold")) +
+  xlab("Motivational Bias") +
+  ylab("Earnings") +
+  coord_cartesian(ylim=c(8.9, 12.2)) 
+
+```
+
+
+```{r}
+# Robust Regression
+rb_lm = rlm(avg ~ intSlope, data = dPerform)
+summary(rb_lm)
+f.robftest(rb_lm , var = "intSlope")
+```
+
+```{r fig.width = 9, fig.height = 6.5, warning=F, echo = T, eval = T}
+# Plot
+bottomplot = plot_grid(plot.behavbias,plot.perform, rel_widths = c(1.5,1), labels = c('B','C'))
+plot_grid(plot.behav,bottomplot, ncol = 1, labels = c("A",""))
+```
+
+Behavioral results were replicated in an independent sample of thirty participants. **A.** Participants were more likely to categorize the stimulus as what they wanted to see. In the Cooperation Condition, the psychometric function when the teammate bet that the upcoming image has more scene is shifted right relative to when the teammate bet that the upcoming image has more face, indicating that participants were more likely to categorize an image as having more scene. In the Competition Condition, the psychometric function when the opponent bet that the upcoming image has more scene is shifted left relative to when the opponent bet that the upcoming image has more face, indicating that participants were less likely to categorize an image as having more scene. Bet x Condition interaction (β = 0.56, z = 3.21, p = 0.001). **B.** Magnitude of bias in each participant, defined as the random slope of the Bet x Condition interaction. We performed a median split and defined the participants with stronger motivational bias as “High Bias” participants, and participants with weaker motivational bias as “Low Bias” participants. **C.**  Task performance (proportion of correct categorizations) was worse for participants with higher motivational bias. Statistical significance was assessed using a robust regression analysis that down-weights the influences of outliers.
