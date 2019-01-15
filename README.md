@@ -13,7 +13,7 @@ Data from the fMRI sample and in-lab replication that can be downloaded as csv f
   
 ### Analaysis Code
 * [Motivation biases visual categorization](scripts/Fig2.Rmd) and [Inlab-Replication](scripts/FigS2.Rmd)   
-* Drift Diffusion Model: [HDDM fitting - needs updating](scripts/HDDM.ipynb), [Individual Fits](scripts/FigS6.Rmd) and [Results Summary](scripts/Fig3.Rmd)  
+* Drift Diffusion Model: [HDDM fitting](scripts/HDDM.ipynb), [Individual Fits](scripts/FigS6.Rmd) and [Results Summary](scripts/Fig3.Rmd)  
 * [NAcc activity is associated with response bias](scripts/Fig6.Rmd)   
 * Category-selective activity is associated with perceptual bias: [Classifier](scripts/Classification.ipynb) & [Results Summary](scripts/Fig7.Rmd)  
 * [Reaction Time Analyses](scripts/Fig4_S4.Rmd)  
