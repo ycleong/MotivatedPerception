@@ -17,4 +17,4 @@ Data from the fMRI sample and in-lab replication that can be downloaded as csv f
 * [NAcc activity is associated with response bias](scripts/Fig6.Rmd)   
 * Category-selective activity is associated with perceptual bias: [Classifier](scripts/Classification.ipynb) & [Results Summary](scripts/Fig7.Rmd)  
 * [Reaction Time Analyses](scripts/Fig4_S4.Rmd)  
-* Model Recovery Study: [Fitting Code](XXXXX), [Results Summary](XXXXX)
+* Model Recovery Study: [Fitting Code](scripts/ModelRecovery.ipynb), [Results Summary](XXXXX)
