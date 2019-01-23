@@ -1,0 +1,148 @@
+---
+title: "Confusion Matrix"
+output: html_document
+---
+
+
+```{r set-up, warning=FALSE, message=FALSE, results="hide"}
+# Clear workspace
+rm(list = ls())
+
+# Load helper functions
+source('helper_functions.R')
+
+# Import libraries
+packages = c("tidyr","dplyr","ggplot2","lme4","lmerTest","Hmisc","car","lmtest","Rarity","cowplot","caret")
+ipak(packages)
+
+# Redo long calculations
+redo_calc = 1;
+
+```
+
+```{r}
+tabulate_freq = function(true_model, true_label){
+  # Load in file
+  raw_dic = read.csv(paste0('../data/model_outputs/simulations/model_recovery/',true_model,'.csv'))[,2:4]
+
+  # Get rid of NAs
+  raw_dic = filter(raw_dic, !is.na(raw_dic$SimpleFull))
+  
+  # Find recovered model
+  raw_dic$Recovered = unlist(apply(raw_dic,1,which.min))
+  raw_dic$Recovered = dplyr::recode(raw_dic$Recovered, 
+                                `1` = "z & v",
+                                `2` = "z",
+                                `3` = "v")
+  
+  # Count percentage 
+  model_summary = group_by(raw_dic,Recovered) %>%
+    summarise(n = n()) %>%
+    mutate(freq = n/sum(n) * 100)
+  
+  model_summary$True = true_label
+  
+  return(model_summary)
+}
+```
+
+```{r}
+SimpleFull_summary = tabulate_freq('SimpleFull','z & v')
+SimpleBias_summary = tabulate_freq('SimpleBias','z')
+SimpleDrift_summary = tabulate_freq('SimpleDrift','v')
+
+model_recovery = rbind(SimpleFull_summary, SimpleBias_summary, SimpleDrift_summary)
+
+model_recovery$True = factor(model_recovery$True, levels = c('v', 'z', 'z & v'))
+model_recovery$Recovered = factor(model_recovery$Recovered, levels = c('z & v', 'z', 'v'))
+```
+
+```{r}
+# fill in the empty cells
+cell1 = data.frame(True = 'z', Recovered = 'v', n = 0, freq = 0)
+cell2 = data.frame(True = 'v', Recovered = 'z', n = 0, freq = 0)
+cell3 = data.frame(True = 'z & v', Recovered = 'z', n = 0, freq = 0)
+
+model_recovery = rbind(model_recovery, cell1, cell2, cell3)
+
+top.plot = ggplot(model_recovery, aes(x=Recovered, y=True, fill = freq)) +
+  geom_tile(color="black",size=0.1) +   # draw tile
+  geom_tile(aes(x=Recovered,y=True),
+            data=subset(model_recovery, as.character(True)==as.character(Recovered)),
+            color="black",size=1, fill="black", alpha=0) + # highlight diagonal
+  geom_text(aes(label = sprintf("%.0f", freq)), size = 7, colour = "white") + # add text
+  labs(x="Recovered Model",y ="True Model") 
+```
+
+
+```{r}
+# Load in file
+raw_dic = read.csv(paste0('../data/model_outputs/simulations/model_recovery/','SimpleFull','.csv'))[,2:4]
+# Get rid of NAs
+SimpleFull = filter(raw_dic, !is.na(raw_dic$SimpleFull))
+
+# Load in file
+raw_dic = read.csv(paste0('../data/model_outputs/simulations/model_recovery/','SimpleBias','.csv'))[,2:4]
+# Get rid of NAs
+SimpleBias = filter(raw_dic, !is.na(raw_dic$SimpleFull))
+
+# Load in file
+raw_dic = read.csv(paste0('../data/model_outputs/simulations/model_recovery/','SimpleDrift','.csv'))[,2:4]
+# Get rid of NAs
+SimpleDrift = filter(raw_dic, !is.na(raw_dic$SimpleFull))
+```
+
+```{r fig.width = 6, fig.height = 8}
+# full_bias
+full_bias = SimpleFull$SimpleFull - SimpleFull$SimpleBias
+
+plot.a = ggplot(data_frame(full_bias), aes(x = full_bias)) +
+  geom_histogram() +
+  geom_vline(xintercept = 0, size = 1, linetype = 'dashed') +
+  ggtitle("z & v vs. z") +
+  xlab("DIC Difference") +
+  geom_point(aes(x = -84, y = 14), shape = 25, fill="black", size = 1.5) +
+  coord_cartesian(xlim = c(-150,30), ylim = c(0,14)) +
+  scale_y_continuous(breaks = seq(0,12,4))
+
+
+# bias_full  
+bias_full = SimpleBias$SimpleFull - SimpleBias$SimpleBias
+
+plot.b = ggplot(data_frame(bias_full), aes(x = bias_full)) +
+  geom_histogram() +
+  geom_vline(xintercept = 0, size = 1, linetype = 'dashed') +
+  ggtitle("z & v vs. z") +
+  xlab("DIC Difference") +
+  coord_cartesian(xlim = c(-12,10), ylim = c(0,14)) +
+  scale_y_continuous(breaks = seq(0,12,4))
+
+
+# full_drift
+full_drift = SimpleFull$SimpleFull - SimpleFull$SimpleDrift
+
+plot.c = ggplot(data_frame(full_drift), aes(x = full_drift)) +
+  geom_histogram() +
+  geom_vline(xintercept = 0, size = 1, linetype = 'dashed') +
+  ggtitle("z & v vs. v") +
+  xlab("DIC Difference") +
+  geom_point(aes(x = -11, y = 8.5), shape = 25, fill="black", size = 1.5) +
+  coord_cartesian(xlim = c(-30,12))
+  
+# drift_full
+drift_full = SimpleDrift$SimpleFull - SimpleDrift$SimpleDrift
+plot.d = ggplot(data_frame(drift_full), aes(x = drift_full)) +
+  geom_histogram() +
+  geom_vline(xintercept = 0, size = 1, linetype = 'dashed') +
+  ggtitle("z & v vs. v") +
+  xlab("DIC Difference") +
+  geom_point(aes(x = -11, y = 16), shape = 25, fill="black", size = 1.5) +
+  coord_cartesian(xlim = c(-13,12)) +
+  scale_y_continuous(breaks = seq(0,16,4))
+
+
+bottom.plot = plot_grid(plot.a, plot.b, plot.c, plot.d, nrow = 2)
+plot_grid(top.plot, bottom.plot, nrow = 2, labels = c("A", "B"))
+```
+
+
