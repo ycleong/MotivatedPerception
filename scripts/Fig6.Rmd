@@ -171,6 +171,10 @@ plot.C = ggplot(NAcc_diff_summary,
 plot_grid(plot.A, plot.B, plot.C, labels = c("A","B","C"), rel_widths = c(0.24, 0.38, 0.38), nrow = 1)
 ```
 
+```{r}
+t.test(Activity ~ MotCon, data = subset(NAcc_tc,Time == -4), paired = T)
+```
+
 **Figure 6.** NAcc activation is associated with response bias. Linear regression predicting participants’ NAcc response from the model estimates of their starting point bias (zbias) and drift bias (vbias). The regression coefficient for zbias was significant but that for vbias was not. **B.** NAcc timecourse time-locked to image onset, corrected for hemodynamic lag by shifting the BOLD data by 4 seconds. The trial starts with the “Waiting for Teammate/Opponent” screen at -6s. The teammate or opponent makes a bet at -4s, which remains on the screen for 4s. The image is presented at 0s and stays on screen for 4s. NAcc activity was significantly higher on Motivation Consistent trials than Motivation Inconsistent trials from 2s before image onset until image offset. Solid lines: Motivation Consistent trials. Dashed lines: Motivation Inconsistent trials. **C.**  Difference in activity between Motivation Consistent and Motivation Inconsistent trials peaked before image offset. *: p < 0.05, additional statistics reported in Table S2.
 
 

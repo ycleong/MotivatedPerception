@@ -136,7 +136,7 @@ packages = c(&quot;tidyr&quot;,&quot;dplyr&quot;,&quot;ggplot2&quot;,&quot;lme4&
 ipak(packages)
 
 # Redo long calculations
-redo_calc = 0;</code></pre>
+redo_calc = 1;</code></pre>
 <div id="load-data" class="section level3">
 <h3>Load Data</h3>
 <pre class="r"><code># Read data
@@ -163,7 +163,10 @@ if (redo_calc){
   resMotConRT_Face = lmer(log(RT) ~ Want2See + CatDiff + (Want2See + CatDiff | Sub), subset(AllData, ChoiceF == &quot;0&quot;), control = lmerControl(calc.derivs = FALSE))
   
   resMotConRT_Scene = lmer(log(RT) ~ Want2See + CatDiff + (Want2See + CatDiff | Sub), subset(AllData, ChoiceF == &quot;1&quot;), control =lmerControl(calc.derivs = FALSE))
-
+  
+  resMotConRT_direct = lmer(log(RT) ~ MotCon + CatDiff + (MotCon + CatDiff |Sub), AllData, control =lmerControl(calc.derivs = FALSE))
+   
+  
   ## Condition Differences ##
   resCondRT = lmer(log(RT) ~ CatDiff + Con + (Con + CatDiff |Sub), AllData, control =lmerControl(calc.derivs = FALSE))
   
@@ -173,14 +176,14 @@ if (redo_calc){
   sum_resCondMotRT = summary(resCondMotRT)
   
   
-  save(resMotConRT, resMotConRT_Face, resMotConRT_Scene, resCondRT, resCondMotRT, sum_resCondMotRT, resCondResponseRT, file=&quot;long_calc/RTMot.Rda&quot;)
+  save(resMotConRT, resMotConRT_direct, resMotConRT_Face, resMotConRT_Scene, resCondRT, resCondMotRT, sum_resCondMotRT, resCondResponseRT, file=&quot;long_calc/RTMot.Rda&quot;)
 
 }else{
   load(&quot;long_calc/RTMot.Rda&quot;)
 }
 
 # MotConRT
-summary(resMotConRT)</code></pre>
+summary(resMotConRT_direct)</code></pre>
 <pre><code>## Linear mixed model fit by REML. t-tests use Satterthwaite's method [
 ## lmerModLmerTest]
 ## Formula: log(RT) ~ MotCon + CatDiff + (MotCon + CatDiff | Sub)

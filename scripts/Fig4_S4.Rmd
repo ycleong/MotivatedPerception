@@ -15,7 +15,7 @@ packages = c("tidyr","dplyr","ggplot2","lme4","lmerTest","Hmisc","car","lmtest",
 ipak(packages)
 
 # Redo long calculations
-redo_calc = 0;
+redo_calc = 1;
 ```
 
 ### Load Data
@@ -47,7 +47,10 @@ if (redo_calc){
   resMotConRT_Face = lmer(log(RT) ~ Want2See + CatDiff + (Want2See + CatDiff | Sub), subset(AllData, ChoiceF == "0"), control = lmerControl(calc.derivs = FALSE))
   
   resMotConRT_Scene = lmer(log(RT) ~ Want2See + CatDiff + (Want2See + CatDiff | Sub), subset(AllData, ChoiceF == "1"), control =lmerControl(calc.derivs = FALSE))
-
+  
+  resMotConRT_direct = lmer(log(RT) ~ MotCon + CatDiff + (MotCon + CatDiff |Sub), AllData, control =lmerControl(calc.derivs = FALSE))
+   
+  
   ## Condition Differences ##
   resCondRT = lmer(log(RT) ~ CatDiff + Con + (Con + CatDiff |Sub), AllData, control =lmerControl(calc.derivs = FALSE))
   
@@ -57,14 +60,14 @@ if (redo_calc){
   sum_resCondMotRT = summary(resCondMotRT)
   
   
-  save(resMotConRT, resMotConRT_Face, resMotConRT_Scene, resCondRT, resCondMotRT, sum_resCondMotRT, resCondResponseRT, file="long_calc/RTMot.Rda")
+  save(resMotConRT, resMotConRT_direct, resMotConRT_Face, resMotConRT_Scene, resCondRT, resCondMotRT, sum_resCondMotRT, resCondResponseRT, file="long_calc/RTMot.Rda")
 
 }else{
   load("long_calc/RTMot.Rda")
 }
 
 # MotConRT
-summary(resMotConRT)
+summary(resMotConRT_direct)
 
 # MotConRT_Face
 summary(resMotConRT_Face)

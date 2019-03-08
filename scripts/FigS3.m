@@ -4,7 +4,7 @@ figure(1)
 set(gcf,'Position',[0 0 1200 600]);
 
 %% Null Model
-load('../data/model_outputs/simulations/sim_traj/null.mat');
+load('../data/model_outputs/simulations/sim_traj/null.mat'); 
 
 % Trajectory
 subplot(6,6,[7:8])
