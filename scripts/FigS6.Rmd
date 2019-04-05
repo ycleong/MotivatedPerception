@@ -2,6 +2,10 @@
 title: "Individual subject fits"
 output: html_document
 ---
+
+Use this for RT plots; compare with real RT?
+
+
 ```{r set-up, warning=FALSE, message=FALSE, results="hide"}
 # Clear workspace
 rm(list = ls())
@@ -14,7 +18,7 @@ packages = c("tidyr","dplyr","ggplot2","lme4","lmerTest","Hmisc","car","lmtest",
 ipak(packages)
 
 # Redo long calculations
-redo_calc = 1;
+redo_calc = 0;
 ```
 
 ### Load Data
@@ -27,49 +31,179 @@ AllData$Sub = as.factor(AllData$Sub)
 AllData$Pred = as.factor(AllData$Pred)
 AllData$Want2See = as.factor(AllData$Want2See)
 AllData$Con_Rev = factor(AllData$Con, levels = c('Coop','Comp'))
-```
 
-
-```{r fig.width = 10, fig.height = 8}
-# Plot RT
 AllData_ValidTrials = filter(AllData, !(is.na(Choice)))
 AllData_ValidTrials$RT_Rev = as.numeric(as.character(AllData_ValidTrials$RT))
 AllData_ValidTrials$RT_Rev[AllData_ValidTrials$Choice < 0.5] = AllData_ValidTrials$RT_Rev[AllData_ValidTrials$Choice < 0.5] * - 1
+AllData_ValidTrials$RT = as.numeric(as.character(AllData_ValidTrials$RT))
+
 AllData_ValidTrials$Want2See = ifelse(AllData_ValidTrials$Want2See == "0", "MotFace", "MotScene")
 AllData_ValidTrials$Want2See = factor(AllData_ValidTrials$Want2See)
-
-
-PPC = read.csv("https://www.dropbox.com/s/8ggv6iwkv1qs9fo/simpleFull_ppc.csv?dl=1", header = F)
-
-# Wrangle data
-colnames(PPC) = c("index","p_rt","p_response","Sub","stim","response","rt","condition","mot_con")
-PPC$Sub = as.factor(PPC$Sub)
-PPC$p_response = ifelse(PPC$p_rt > 0, 1, 0)
-PPC$RT_Rev = PPC$p_rt
-
-PPC$Want2See = ifelse(PPC$condition < 0, "MotFace", "MotScene")
-PPC$Want2See = factor(PPC$Want2See)
-
-# Recode subject
-AllSub = NULL
-AllSub$Sub = unique(AllData_ValidTrials$Sub)
-AllSub$SubID = c(1:30)
-AllSub = as.data.frame(AllSub)
-AllSub$SubID = factor(AllSub$SubID)
-
-AllData_ValidTrials = left_join(AllData_ValidTrials,AllSub)
-PPC = left_join(PPC,AllSub)
-
-PPC_timebound = PPC[(abs(PPC$p_rt) < 4) & (abs(PPC$p_rt) > 0.3),]
-PPC_positive = PPC_timebound[PPC_timebound$p_rt > 0,]
-PPC_negative = PPC_timebound[PPC_timebound$p_rt < 0,]
-
-ggplot() + 
-  geom_histogram(data = AllData_ValidTrials,  aes(x = RT_Rev, y = ..ncount..)) +
-  geom_line(data = PPC_timebound, stat = "density", aes(x = RT_Rev, y = ..scaled..), size = 1.5, color='steelblue', alpha = 0.6) +
-  xlab("RT(s)") + ylab("Probability") +
-  theme(axis.text.y  = element_blank()) +
-  facet_wrap(~ SubID + Want2See, nrow = 6) +
-  coord_cartesian(xlim = c(-4.1, 4.1))
 ```
-**Observed and predicted choice and RT distribution of each participant.** RTs for face responses were sign-flipped for illustration purposes. For each participant, we plot the RT distributions for face (negative RTs) and scene responses (positive RTs) separately for when the participant was motivated to see more face (MotFace) and for when the participant was motivated to see more scene (MotScene). Blue line indicates model-predicted choice and RT distributions.
+
+### Calculate CRF
+```{r}
+### Average over subject #####
+calc_crf = function(Data, n_low = 35, n_high = 65){
+  CRF = subset(Data, Cat_n > n_low &  Cat_n < n_high) %>%
+  group_by(Sub,Want2See, Cat_n) %>%
+  mutate(Q = factor(findInterval(RT, quantile(RT, c(0.2, 0.4, 0.6, 0.8))),
+                             labels = c('Q1','Q2','Q3','Q4','Q5'))) %>%
+  group_by(Sub, Want2See, Q, Cat_n) %>%
+  dplyr::summarise(meanC = mean(Choice), SE = sem(Choice)) %>%
+  group_by(Want2See,Q,Cat_n) %>%
+  dplyr::summarise(p_scene = mean(meanC), SE = sem(meanC)) 
+    
+
+  return(CRF)
+}
+
+calc_crf_combined = function(Data, n_low = 35, n_high = 65){
+  CRF = subset(Data, Cat_n > n_low &  Cat_n < n_high) %>%
+  group_by(Sub, Want2See, Cat_n) %>%
+  mutate(Q = factor(findInterval(RT, quantile(RT, c(0.2, 0.4, 0.6, 0.8))),
+                             labels = c('Q1','Q2','Q3','Q4','Q5'))) %>%
+  group_by(Sub, Want2See, Q) %>%
+  dplyr::summarise(meanC = mean(Choice), SE = sem(Choice)) %>%
+  group_by(Want2See, Q) %>%
+  dplyr::summarise(p_scene = mean(meanC), SE = sem(meanC))
+
+  return(CRF)
+}
+
+
+#### Wrangle PPC
+wrangle_ppc = function(PPC){
+  # Wrangle data
+  colnames(PPC) = c("index","p_rt","p_response","Sub","stim","response","rt","condition","mot_con")
+  
+  PPC$Cat_n = (PPC$stim * 10 + 50)
+  PPC$Sub = as.factor(PPC$Sub)
+  PPC$Choice = ifelse(PPC$p_rt > 0, 1, 0)
+  PPC$RT = PPC$p_rt
+  PPC$RT[PPC$RT < 0] = PPC$RT[PPC$RT < 0] * -1
+  
+  PPC$Want2See = ifelse(PPC$condition < 0, "MotFace", "MotScene")
+  PPC$Want2See = factor(PPC$Want2See)
+  
+  PPC = PPC[PPC$RT < 4,]
+  
+  return(PPC)
+}
+
+```
+
+### Calculate CRF
+```{r}
+if (redo_calc){
+  CRF_data = calc_crf(AllData_ValidTrials)
+  CRF_data_combined = calc_crf_combined(AllData_ValidTrials)
+  
+  # Full
+  PPC = read.csv("../../MotivatedPerception_Revision/data/model_outputs/ppc/simpleFull_ppc.csv", header = F)
+  PPC = wrangle_ppc(PPC)
+  
+  CRF_full = calc_crf(PPC)
+  CRF_full_combined = calc_crf_combined(PPC)
+  
+  # Bias
+  PPC = read.csv("../../MotivatedPerception_Revision/data/model_outputs/ppc/simpleBias_ppc.csv", header = F)
+  PPC = wrangle_ppc(PPC)
+  
+  CRF_bias = calc_crf(PPC)
+  CRF_bias_combined = calc_crf_combined(PPC)
+  
+  # Drift
+  PPC = read.csv("../../MotivatedPerception_Revision/data/model_outputs/ppc/simpleDrift_ppc.csv", header = F)
+  PPC = wrangle_ppc(PPC)
+  
+  CRF_drift = calc_crf(PPC)
+  CRF_drift_combined = calc_crf_combined(PPC)
+  
+  # Null
+  PPC = read.csv("../../MotivatedPerception_Revision/data/model_outputs/ppc/simpleNull_ppc.csv", header = F)
+  PPC = wrangle_ppc(PPC)
+  
+  CRF_null = calc_crf(PPC)
+  CRF_null_combined = calc_crf_combined(PPC)
+  
+  
+ # Labels
+  CRF_data$type = "data"
+  CRF_data_combined$type = "data"
+
+  CRF_full$type = "z & v"
+  CRF_full_combined$type = "z & v"
+  
+  CRF_bias$type = "z"
+  CRF_bias_combined$type = "z"
+  
+  CRF_drift$type = "v"
+  CRF_drift_combined$type = "v"
+  
+  CRF_null$type = "null"
+  CRF_null_combined$type = "null"
+  
+  CRF = bind_rows(CRF_data,CRF_full,CRF_bias,CRF_drift, CRF_null)
+  CRF_combined = bind_rows(CRF_data_combined,CRF_full_combined,CRF_bias_combined,CRF_drift_combined, CRF_null_combined)
+  
+  CRF$type = factor(CRF$type, levels = c("data", "z & v", "z","v","null"))
+  CRF_combined$type = factor(CRF_combined$type, levels = c("data", "z & v", "z","v","null"))
+  
+  save(CRF, CRF_combined, file = "long_calc/CRF.rda")
+} else{
+  load(file = "long_calc/CRF.rda")
+}
+
+```
+
+```{r fig.height = 5, fig.width = 8}
+bottom_plot = ggplot(subset(CRF,Cat_n > 30 & Cat_n < 70), aes(x = Q, y = p_scene, color = Want2See)) +
+  geom_point() +
+  geom_errorbar(aes(ymin= p_scene - SE, ymax = p_scene + SE), width=.2) +
+  scale_colour_manual(values=myPalette) +
+  facet_grid(type ~ Cat_n) +
+  theme(legend.position="none",
+        axis.text.x  = element_text(size=10),
+        axis.text.y  = element_text(size=10),
+        axis.title.x = element_text(size=12),
+        axis.title.y = element_text(size=12),
+        strip.background = element_blank())
+
+```
+
+```{r fig.height = 3, fig.width = 8}
+top_plot = ggplot(CRF_combined, aes(x = Q, y = p_scene, color = Want2See)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=p_scene - SE, ymax = p_scene + SE), width=.2) +
+  scale_colour_manual(values=myPalette) +
+  facet_grid(~type) +
+  theme(legend.position="none", 
+        axis.text.x  = element_text(size=10),
+        axis.text.y  = element_text(size=10),
+        axis.title.x = element_text(size=12),
+        axis.title.y = element_text(size=12),
+        strip.background = element_blank())
+```
+
+```{r fig.width=8, fig.height=7.5}
+plot_grid(bottom_plot,top_plot,  ncol = 1, rel_heights = c(0.5,0.25), labels = c("A","B"))
+```
+
+
+```{r fig.width = 3, fig.height = 3, echo = F, eval = F}
+CRF_stats = subset(AllData_ValidTrials, Cat_n > 35 &  Cat_n < 65) %>%
+  group_by(Sub,Want2See, Cat_n) %>%
+  mutate(Q = factor(findInterval(RT, quantile(RT, c(0.2, 0.4, 0.6, 0.8))),
+                             labels = c('Q1','Q2','Q3','Q4','Q5'))) %>%
+  group_by(Sub, Want2See, Q) %>%
+  dplyr::summarise(p_scene = mean(Choice), SE = sem(Choice))
+
+
+t.test(p_scene ~ Want2See, data = subset(CRF_stats, Q == "Q1"), paired = TRUE)
+t.test(p_scene ~ Want2See, data = subset(CRF_stats, Q == "Q2"), paired = TRUE)
+t.test(p_scene ~ Want2See, data = subset(CRF_stats, Q == "Q3"), paired = TRUE)
+t.test(p_scene ~ Want2See, data = subset(CRF_stats, Q == "Q4"), paired = TRUE)
+t.test(p_scene ~ Want2See, data = subset(CRF_stats, Q == "Q5"), paired = TRUE)
+
+```

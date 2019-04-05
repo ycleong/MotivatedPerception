@@ -167,6 +167,8 @@ plot.perform = ggplot(dPerform, aes(intSlope, avg)) +
 ```
 
 ```{r}
+cor.test(dPerform$avg, dPerform$intSlope)
+
 # Robust Regression
 rb_lm = rlm(avg ~ intSlope, data = dPerform)
 summary(rb_lm)

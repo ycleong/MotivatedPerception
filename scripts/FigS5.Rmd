@@ -23,7 +23,7 @@ redo_calc = 1;
 ```{r}
 tabulate_freq = function(true_model, true_label){
   # Load in file
-  raw_dic = read.csv(paste0('../data/model_outputs/simulations/model_recovery/',true_model,'.csv'))[,2:4]
+  raw_dic = read.csv(paste0('../data/model_outputs/simulations/model_recovery/',true_model,'.csv'))[,2:5]
 
   # Get rid of NAs
   raw_dic = filter(raw_dic, !is.na(raw_dic$SimpleFull))
@@ -33,7 +33,8 @@ tabulate_freq = function(true_model, true_label){
   raw_dic$Recovered = dplyr::recode(raw_dic$Recovered, 
                                 `1` = "z & v",
                                 `2` = "z",
-                                `3` = "v")
+                                `3` = "v",
+                                `4` = "null")
   
   # Count percentage 
   model_summary = group_by(raw_dic,Recovered) %>%
@@ -50,11 +51,12 @@ tabulate_freq = function(true_model, true_label){
 SimpleFull_summary = tabulate_freq('SimpleFull','z & v')
 SimpleBias_summary = tabulate_freq('SimpleBias','z')
 SimpleDrift_summary = tabulate_freq('SimpleDrift','v')
+SimpleNull_summary = tabulate_freq('SimpleNull','null')
 
-model_recovery = rbind(SimpleFull_summary, SimpleBias_summary, SimpleDrift_summary)
+model_recovery = rbind(SimpleFull_summary, SimpleBias_summary, SimpleDrift_summary, SimpleNull_summary)
 
-model_recovery$True = factor(model_recovery$True, levels = c('v', 'z', 'z & v'))
-model_recovery$Recovered = factor(model_recovery$Recovered, levels = c('z & v', 'z', 'v'))
+model_recovery$True = factor(model_recovery$True, levels = c('null', 'v', 'z', 'z & v'))
+model_recovery$Recovered = factor(model_recovery$Recovered, levels = c('z & v', 'z', 'v','null'))
 ```
 
 ```{r}
@@ -63,7 +65,11 @@ cell1 = data.frame(True = 'z', Recovered = 'v', n = 0, freq = 0)
 cell2 = data.frame(True = 'v', Recovered = 'z', n = 0, freq = 0)
 cell3 = data.frame(True = 'z & v', Recovered = 'z', n = 0, freq = 0)
 
-model_recovery = rbind(model_recovery, cell1, cell2, cell3)
+cell4 = data.frame(Recovered = 'null', True = 'z & v', n = 0, freq = 0)
+cell5 = data.frame(Recovered = 'null', True = 'z', n = 0, freq = 0)
+cell6 = data.frame(Recovered = 'null', True = 'v', n = 0, freq = 0)
+
+model_recovery = rbind(model_recovery, cell1, cell2, cell3, cell4, cell5, cell6)
 
 top.plot = ggplot(model_recovery, aes(x=Recovered, y=True, fill = freq)) +
   geom_tile(color="black",size=0.1) +   # draw tile
@@ -71,28 +77,35 @@ top.plot = ggplot(model_recovery, aes(x=Recovered, y=True, fill = freq)) +
             data=subset(model_recovery, as.character(True)==as.character(Recovered)),
             color="black",size=1, fill="black", alpha=0) + # highlight diagonal
   geom_text(aes(label = sprintf("%.0f", freq)), size = 7, colour = "white") + # add text
-  labs(x="Recovered Model",y ="True Model") 
+  labs(x="Recovered Model",y ="True Model") #+
+    #theme(legend.position="none")
+
 ```
 
 
 ```{r}
 # Load in file
-raw_dic = read.csv(paste0('../data/model_outputs/simulations/model_recovery/','SimpleFull','.csv'))[,2:4]
+raw_dic = read.csv(paste0('../data/model_outputs/simulations/model_recovery/','SimpleFull','.csv'))[,2:5]
 # Get rid of NAs
 SimpleFull = filter(raw_dic, !is.na(raw_dic$SimpleFull))
 
 # Load in file
-raw_dic = read.csv(paste0('../data/model_outputs/simulations/model_recovery/','SimpleBias','.csv'))[,2:4]
+raw_dic = read.csv(paste0('../data/model_outputs/simulations/model_recovery/','SimpleBias','.csv'))[,2:5]
 # Get rid of NAs
 SimpleBias = filter(raw_dic, !is.na(raw_dic$SimpleFull))
 
 # Load in file
-raw_dic = read.csv(paste0('../data/model_outputs/simulations/model_recovery/','SimpleDrift','.csv'))[,2:4]
+raw_dic = read.csv(paste0('../data/model_outputs/simulations/model_recovery/','SimpleDrift','.csv'))[,2:5]
 # Get rid of NAs
 SimpleDrift = filter(raw_dic, !is.na(raw_dic$SimpleFull))
+
+# Load in file
+raw_dic = read.csv(paste0('../data/model_outputs/simulations/model_recovery/','SimpleNull','.csv'))[,2:5]
+# Get rid of NAs
+SimpleNull = filter(raw_dic, !is.na(raw_dic$SimpleFull))
 ```
 
-```{r fig.width = 6, fig.height = 8}
+```{r fig.width = 6, fig.height = 10}
 # full_bias
 full_bias = SimpleFull$SimpleFull - SimpleFull$SimpleBias
 
@@ -126,8 +139,10 @@ plot.c = ggplot(data_frame(full_drift), aes(x = full_drift)) +
   geom_vline(xintercept = 0, size = 1, linetype = 'dashed') +
   ggtitle("z & v vs. v") +
   xlab("DIC Difference") +
-  geom_point(aes(x = -11, y = 8.5), shape = 25, fill="black", size = 1.5) +
-  coord_cartesian(xlim = c(-30,12))
+  geom_point(aes(x = -11, y = 10), shape = 25, fill="black", size = 1.5) +
+  coord_cartesian(xlim = c(-35,8)) +
+    scale_y_continuous(breaks = seq(0,10,2))
+
   
 # drift_full
 drift_full = SimpleDrift$SimpleFull - SimpleDrift$SimpleDrift
@@ -140,9 +155,32 @@ plot.d = ggplot(data_frame(drift_full), aes(x = drift_full)) +
   coord_cartesian(xlim = c(-13,12)) +
   scale_y_continuous(breaks = seq(0,16,4))
 
+# full_null
+full_null = SimpleFull$SimpleFull - SimpleFull$SimpleNull
 
-bottom.plot = plot_grid(plot.a, plot.b, plot.c, plot.d, nrow = 2)
-plot_grid(top.plot, bottom.plot, nrow = 2, labels = c("A", "B"))
+plot.e = ggplot(data_frame(full_null), aes(x = full_null)) +
+  geom_histogram() +
+  geom_vline(xintercept = 0, size = 1, linetype = 'dashed') +
+  ggtitle("z & v vs. null") +
+  xlab("DIC Difference") +
+  geom_point(aes(x = -200, y = 14), shape = 25, fill="black", size = 1.5) +
+  coord_cartesian(xlim = c(-250,50), ylim = c(0,14)) +
+  scale_y_continuous(breaks = seq(0,12,4))
+
+  
+# null_full
+null_full = SimpleNull$SimpleFull - SimpleNull$SimpleNull
+plot.f = ggplot(data_frame(null_full), aes(x = null_full)) +
+  geom_histogram() +
+  geom_vline(xintercept = 0, size = 1, linetype = 'dashed') +
+  ggtitle("z & v vs. null") +
+  xlab("DIC Difference") +
+  coord_cartesian(xlim = c(-13,12)) +
+  scale_y_continuous(breaks = seq(0,10,2))
+
+
+bottom.plot = plot_grid(plot.a, plot.b, plot.c, plot.d, plot.e, plot.f, nrow = 3)
+plot_grid(top.plot, bottom.plot, nrow = 2, labels = c("A", "B"), rel_heights = c(0.45,0.55))
 ```
 
 

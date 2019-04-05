@@ -136,7 +136,7 @@ packages = c(&quot;tidyr&quot;,&quot;dplyr&quot;,&quot;ggplot2&quot;,&quot;lme4&
 ipak(packages)
 
 # Redo long calculations
-redo_calc = 1;</code></pre>
+redo_calc = 0;</code></pre>
 <div id="load-data" class="section level3">
 <h3>Load Data</h3>
 <pre class="r"><code># Read data
@@ -475,6 +475,7 @@ if (redo_calc){
 <pre class="r"><code># Plot
 dataplot = 
   ggplot(subset(summRT, ((ChoiceF == &quot;0&quot;) &amp; (Cat_n &lt; 60)) | ((ChoiceF == &quot;1&quot;) &amp; (Cat_n &gt; 40))),
+  #ggplot(summRT,
        aes(y = meanRT, x = Cat_n, color = Want2See)) + 
   stat_summary(fun.y=mean,geom=&quot;point&quot;, size = 3.6) +
   stat_summary(fun.data = mean_cl_normal, fun.args = list(mult = 1), geom = &quot;errorbar&quot;,width=1) +
@@ -491,7 +492,8 @@ dataplot =
 
 
 simplot = 
-  ggplot(subset(summRT_sim, ((ChoiceF == &quot;0&quot;) &amp; (Cat_n &lt; 60)) | ((ChoiceF == &quot;1&quot;) &amp; (Cat_n &gt; 40))), 
+  ggplot(subset(summRT_sim, ((ChoiceF == &quot;0&quot;) &amp; (Cat_n &lt; 60)) | ((ChoiceF == &quot;1&quot;) &amp; (Cat_n &gt; 40))),
+  #ggplot(summRT_sim,
        aes(y = meanRT, x = Cat_n, color = Want2See)) +
   stat_summary(fun.y=mean,geom=&quot;point&quot;, size = 3.6) +
   stat_summary(fun.data = mean_cl_normal, fun.args = list(mult = 1), geom = &quot;errorbar&quot;,width=1) +

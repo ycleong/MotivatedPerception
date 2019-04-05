@@ -125,6 +125,11 @@ for (s in unique(AllData$Sub)){
 NeuralBias = as.numeric(NeuralBias)
 cor.test(NeuralBias, intSlope)
 
+# Robust Regression
+rb_lm = rlm(intSlope ~ NeuralBias)
+summary(rb_lm)
+f.robftest(rb_lm , var = "NeuralBias")
+
 correlationPlot = as.data.frame(cbind(NeuralBias, intSlope))
 
 # Plot behavioral bias

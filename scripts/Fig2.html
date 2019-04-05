@@ -365,6 +365,18 @@ plot.perform = ggplot(dPerform, aes(intSlope, avg)) +
   xlab(&quot;Motivational Bias&quot;) +
   ylab(&quot;Earnings&quot;) +
   coord_cartesian(ylim=c(8.9, 12.2)) </code></pre>
+<pre class="r"><code>cor.test(dPerform$avg, dPerform$intSlope)</code></pre>
+<pre><code>## 
+##  Pearson's product-moment correlation
+## 
+## data:  dPerform$avg and dPerform$intSlope
+## t = -2.9495, df = 28, p-value = 0.006362
+## alternative hypothesis: true correlation is not equal to 0
+## 95 percent confidence interval:
+##  -0.7207272 -0.1535421
+## sample estimates:
+##        cor 
+## -0.4868789</code></pre>
 <pre class="r"><code># Robust Regression
 rb_lm = rlm(avg ~ intSlope, data = dPerform)
 summary(rb_lm)</code></pre>

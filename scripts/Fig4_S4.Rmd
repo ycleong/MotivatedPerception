@@ -15,7 +15,7 @@ packages = c("tidyr","dplyr","ggplot2","lme4","lmerTest","Hmisc","car","lmtest",
 ipak(packages)
 
 # Redo long calculations
-redo_calc = 1;
+redo_calc = 0;
 ```
 
 ### Load Data
@@ -125,6 +125,7 @@ if (redo_calc){
 # Plot
 dataplot = 
   ggplot(subset(summRT, ((ChoiceF == "0") & (Cat_n < 60)) | ((ChoiceF == "1") & (Cat_n > 40))),
+  #ggplot(summRT,
        aes(y = meanRT, x = Cat_n, color = Want2See)) + 
   stat_summary(fun.y=mean,geom="point", size = 3.6) +
   stat_summary(fun.data = mean_cl_normal, fun.args = list(mult = 1), geom = "errorbar",width=1) +
@@ -141,7 +142,8 @@ dataplot =
 
 
 simplot = 
-  ggplot(subset(summRT_sim, ((ChoiceF == "0") & (Cat_n < 60)) | ((ChoiceF == "1") & (Cat_n > 40))), 
+  ggplot(subset(summRT_sim, ((ChoiceF == "0") & (Cat_n < 60)) | ((ChoiceF == "1") & (Cat_n > 40))),
+  #ggplot(summRT_sim,
        aes(y = meanRT, x = Cat_n, color = Want2See)) +
   stat_summary(fun.y=mean,geom="point", size = 3.6) +
   stat_summary(fun.data = mean_cl_normal, fun.args = list(mult = 1), geom = "errorbar",width=1) +
@@ -158,6 +160,7 @@ simplot =
 
 plot_grid(dataplot, simplot, nrow = 2)
 ```
+
 
 **Figure 4. Drift diffusion model accounts for asymmetries in reaction times. A.** Reaction times for face (left) and scene (right) responses at each % scene, separately for when participants were motivated to see faces (red) and scenes (blue).  Participants were faster to categorize an image as the category they were motivated to see. Trial types with less than 48 trials (i.e. 1% of total number of trials) were excluded from the plot because there were too few trials for reliable estimates and they tend to come from a small number of participants. For example, when % scene was high, very rarely did participants categorize an image as a face. Error bars indicate between-subject SEM. **B.** Model-predicted reaction times. Reaction times were simulated using the z & v model with parameter values sampled from the posterior distribution. 500 datasets were simulated, each with the same number of participants and trials as the original data. Reaction times were first averaged over  simulations to obtain an average reaction time for each trial type for each participant, and then averaged over participants to obtain the mean reaction time for each type. Error bars denote between-subject SEM.
 

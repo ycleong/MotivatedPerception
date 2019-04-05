@@ -1,8 +1,7 @@
 ---
-title: "Motivation biases category selective neural activity during visual categorization"
+title: "Individual subject fits"
 output: html_document
 ---
-
 ```{r set-up, warning=FALSE, message=FALSE, results="hide"}
 # Clear workspace
 rm(list = ls())
@@ -18,6 +17,7 @@ ipak(packages)
 redo_calc = 1;
 ```
 
+### Load Data
 ```{r load-data}
 # Read data
 AllData = read.csv("../data/AllData.csv")
@@ -27,34 +27,49 @@ AllData$Sub = as.factor(AllData$Sub)
 AllData$Pred = as.factor(AllData$Pred)
 AllData$Want2See = as.factor(AllData$Want2See)
 AllData$Con_Rev = factor(AllData$Con, levels = c('Coop','Comp'))
+```
+
+
+```{r fig.width = 10, fig.height = 8}
+# Plot RT
 AllData_ValidTrials = filter(AllData, !(is.na(Choice)))
+AllData_ValidTrials$RT_Rev = as.numeric(as.character(AllData_ValidTrials$RT))
+AllData_ValidTrials$RT_Rev[AllData_ValidTrials$Choice < 0.5] = AllData_ValidTrials$RT_Rev[AllData_ValidTrials$Choice < 0.5] * - 1
+AllData_ValidTrials$Want2See = ifelse(AllData_ValidTrials$Want2See == "0", "MotFace", "MotScene")
+AllData_ValidTrials$Want2See = factor(AllData_ValidTrials$Want2See)
 
-# Load stats
-load("long_calc/ConditionxBet.Rda")
+
+PPC = read.csv("https://www.dropbox.com/s/8ggv6iwkv1qs9fo/simpleFull_ppc.csv?dl=1", header = F)
+
+# Wrangle data
+colnames(PPC) = c("index","p_rt","p_response","Sub","stim","response","rt","condition","mot_con")
+PPC$Sub = as.factor(PPC$Sub)
+PPC$p_response = ifelse(PPC$p_rt > 0, 1, 0)
+PPC$RT_Rev = PPC$p_rt
+
+PPC$Want2See = ifelse(PPC$condition < 0, "MotFace", "MotScene")
+PPC$Want2See = factor(PPC$Want2See)
+
+# Recode subject
+AllSub = NULL
+AllSub$Sub = unique(AllData_ValidTrials$Sub)
+AllSub$SubID = c(1:30)
+AllSub = as.data.frame(AllSub)
+AllSub$SubID = factor(AllSub$SubID)
+
+AllData_ValidTrials = left_join(AllData_ValidTrials,AllSub)
+PPC = left_join(PPC,AllSub)
+
+PPC_timebound = PPC[(abs(PPC$p_rt) < 4) & (abs(PPC$p_rt) > 0.3),]
+PPC_positive = PPC_timebound[PPC_timebound$p_rt > 0,]
+PPC_negative = PPC_timebound[PPC_timebound$p_rt < 0,]
+
+ggplot() + 
+  geom_histogram(data = AllData_ValidTrials,  aes(x = RT_Rev, y = ..ncount..)) +
+  geom_line(data = PPC_timebound, stat = "density", aes(x = RT_Rev, y = ..scaled..), size = 1.5, color='steelblue', alpha = 0.6) +
+  xlab("RT(s)") + ylab("Probability") +
+  theme(axis.text.y  = element_blank()) +
+  facet_wrap(~ SubID + Want2See, nrow = 6) +
+  coord_cartesian(xlim = c(-4.1, 4.1))
 ```
-
-```{r fig.height= 5, fig.width = 8}
-res.prob = lmer(Prob ~ Cat_n_z  + Con * Pred + (Con * Pred |Sub), AllData_ValidTrials)
-summary(res.prob)
-
-ggplot(AllData_ValidTrials, aes(x=Cat_n,y=Prob,color = Pred)) +
-  stat_summary(fun.y=mean,geom="point",size=2) +
-  stat_summary(fun.data = mean_cl_normal, geom = "errorbar",width=1,
-               fun.args = list(mult = 1)) + 
-  theme(legend.position="none",
-      panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank(), 
-        axis.line = element_line(colour = "black"),
-        axis.text.x  = element_text(size=13,color="black"),
-        axis.text.y  = element_text(size=13,color="black"),
-        axis.title.x = element_text(size=15),
-        axis.title.y = element_text(size=13),
-        strip.background = element_blank(),
-        strip.text.x = element_text(face = "plain", size = 13)) +
-  xlab("% Scene") + ylab("Classifier Prob(Scene)") +
-  facet_grid(~Con_Rev, labeller=labeller(Con_Rev = c("Coop" = "Cooperation","Comp" = "Competition"))) +
-  scale_colour_manual(values=myPalette)
-```
-
-**Motivation biases face and scene selective neural activity during visual categorization.** Classifier probability that the presented image was a scene rather than a face based on the BOLD response in the ventral visual stream. Red dots: teammate or opponent betting that the next image will be a face. Scene probability was higher when participants were motivated to see a scene (i.e. teammate bets scene or opponent bets face) than when participants were motivated to see a face (i.e. teammate bets face or opponent bets scene), β = 0.03, SE = 0.02, t(4756) = 2.05, p = 0.040. 
+**Observed and predicted choice and RT distribution of each participant.** RTs for face responses were sign-flipped for illustration purposes. For each participant, we plot the RT distributions for face (negative RTs) and scene responses (positive RTs) separately for when the participant was motivated to see more face (MotFace) and for when the participant was motivated to see more scene (MotScene). Blue line indicates model-predicted choice and RT distributions.

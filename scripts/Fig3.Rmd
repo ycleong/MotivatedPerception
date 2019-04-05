@@ -11,7 +11,7 @@ rm(list = ls())
 source('helper_functions.R')
 
 # Import libraries
-packages = c("tidyr","dplyr","ggplot2","lme4","lmerTest","Hmisc","car","lmtest","Rarity","cowplot")
+packages = c("tidyr","dplyr","ggplot2","lme4","lmerTest","Hmisc","car","lmtest","Rarity","cowplot","MASS",'sfsmisc')
 ipak(packages)
 
 # Redo long calculations
@@ -23,6 +23,14 @@ featquery_res$Sub = as.factor(featquery_res$Sub)
 
 ## Load in individual subject parameters
 full.model.subj_parm = read.csv("../data/model_outputs/subject_parms/simpleFull_subjparms.csv")
+
+# Check for correlation of the two parameters
+cor.test(full.model.subj_parm$z,full.model.subj_parm$drift_bias)
+
+rb_lm = rlm(drift_bias ~ z, data = full.model.subj_parm)
+summary(rb_lm)
+f.robftest(rb_lm , var = "z")
+
 ```
 
 ### Plot trace

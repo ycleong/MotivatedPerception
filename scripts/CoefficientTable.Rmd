@@ -1,0 +1,120 @@
+---
+title: "Table of Coefficients"
+output: html_document
+---
+```{r warning=FALSE, message=FALSE, results="hide"}
+rm(list=ls())
+
+source('helper_functions.R')
+
+# Import libraries
+packages = c("tidyr","dplyr","ggplot2","lme4","lmerTest","Hmisc","car","lmtest","Rarity","cowplot","jtools")
+ipak(packages)
+```
+
+```{r}
+# Read data
+AllData = read.csv("../data/AllData.csv")
+
+# Convert to factors
+AllData$Sub = as.factor(AllData$Sub)
+AllData$Pred = as.factor(AllData$Pred)
+AllData$Want2See = as.factor(AllData$Want2See)
+AllData$Con_Rev = factor(AllData$Con, levels = c('Coop','Comp'))
+
+AllData$RT = as.numeric(as.character(AllData$RT))
+AllData$CatDiff = abs(50 - AllData$Cat_n)*2
+AllData$ChoiceF = factor(AllData$Choice)
+```
+
+```{r}
+# Psychometric functions
+# M1 
+thisData = subset(AllData, Con == "Coop")
+this.res = glmer(Choice ~ Cat_n + Pred + (Pred |Sub), thisData, family = binomial(link="probit"))
+# summary(this.res)
+M1 = summary(this.res)$coefficients
+
+# M2
+thisData = subset(AllData, Con == "Comp")
+this.res = glmer(Choice ~ Cat_n + Pred + (Pred |Sub), thisData, family = binomial(link="probit"))
+#summary(this.res)
+M2 = summary(this.res)$coefficients 
+
+# M3
+this.res = glmer(Choice ~ Cat_n + Con * Pred + (Con * Pred|Sub), AllData, 
+            family = binomial(link="probit"), control = glmerControl(calc.derivs = FALSE))
+summary(this.res)
+M3 = summary(this.res)$coefficients
+```
+
+```{r}
+# Reaction time data
+load("long_calc/RTMot.Rda")
+summary(resMotConRT_direct)
+M4 = summary(resMotConRT_direct)$coefficients
+
+summary(resMotConRT_Face)
+M5 = summary(resMotConRT_Face)$coefficients
+
+summary(resMotConRT_Scene)
+M6 = summary(resMotConRT_Scene)$coefficients
+```
+
+```{r}
+# Reaction time data simulation
+load("long_calc/summRT_sim.Rda")
+summRT_sim$MotCon = summRT_sim$Want2See == summRT_sim$ChoiceF
+summRT_sim$CatDiff = abs(50 - summRT_sim$Cat_n)*2
+
+summary(lmer(log(meanRT) ~ MotCon + CatDiff + (MotCon + CatDiff | Sub), data = summRT_sim))
+M7 = summary(lmer(log(meanRT) ~ MotCon + CatDiff + (MotCon + CatDiff | Sub), data = summRT_sim))$coefficients
+
+summary(lmer(log(meanRT) ~ MotCon + CatDiff + (MotCon + CatDiff | Sub), data = subset(summRT_sim, ChoiceF == "0")))
+M8 = summary(lmer(log(meanRT) ~ MotCon + CatDiff + (MotCon + CatDiff | Sub), data = subset(summRT_sim, ChoiceF == "0")))$coefficients
+
+M9 = summary(lmer(log(meanRT) ~ MotCon + CatDiff + (MotCon + CatDiff | Sub), data = subset(summRT_sim, ChoiceF == "1")))$coefficients
+```
+
+```{r}
+# Read data
+AllData = read.csv("../data/AllData.csv")
+
+# Convert to factors
+AllData$Sub = as.factor(AllData$Sub)
+AllData$Pred = as.factor(AllData$Pred)
+AllData$Want2See = as.factor(AllData$Want2See)
+AllData$Con_Rev = factor(AllData$Con, levels = c('Coop','Comp'))
+AllData_ValidTrials = filter(AllData, !(is.na(Choice)))
+
+# Load psychometric results (see Fig. 2 code)
+load("long_calc/ConditionxBet.Rda")
+
+## Median split participants
+intSlope = unlist(coef(res)$Sub$`ConCoop:Pred1`)
+SubBias = as.data.frame(intSlope)
+SubBias$Sub = unique(AllData$Sub)
+SubBias$medianBehave = SubBias$intSlope > median(SubBias$intSlope)
+
+BiasedData =  subset(AllData_ValidTrials, Sub %in% SubBias$Sub[SubBias$medianBehav == "TRUE"])
+UnbiasedData = subset(AllData_ValidTrials, Sub %in% SubBias$Sub[SubBias$medianBehav == "FALSE"])
+
+AllData_ValidTrials = full_join(AllData_ValidTrials, SubBias)
+
+res.prob = lmer(Prob ~ Cat_n  + Con * Pred + (Con * Pred |Sub), AllData_ValidTrials)
+M10 = summary(res.prob)$coefficients
+
+res.int.con = lmer(Prob ~ Cat_n  + Con * Pred * intSlope + (Con * Pred|Sub), AllData_ValidTrials)
+M11 = summary(res.int.con)$coefficients
+
+res.prob.bias = lmer(Prob ~ Cat_n + Con * Pred + (Con * Pred |Sub), BiasedData)
+M12 = summary(res.prob.bias)$coefficients
+
+res.prob.unbias = lmer(Prob ~ Cat_n + Con * Pred + (Con * Pred |Sub), UnbiasedData)
+M13 = summary(res.prob.unbias)$coefficients
+
+res.int = lmer(Prob ~ Cat_n + Con * Pred * medianBehave + (Con * Pred |Sub), AllData_ValidTrials)
+M14 = summary(res.int)$coefficients
+
+```
+
