@@ -11,11 +11,11 @@ rm(list = ls())
 source('helper_functions.R')
 
 # Import libraries
-packages = c("tidyr","dplyr","ggplot2","lme4","lmerTest","Hmisc","car","lmtest","Rarity","cowplot")
+packages = c("MASS","sfsmisc","tidyr","dplyr","ggplot2","lme4","lmerTest","Hmisc","car","lmtest","Rarity","cowplot")
 ipak(packages)
 
 # Redo long calculations
-redo_calc = 1;
+redo_calc = 0;
 ```
 
 #### Load Data
@@ -58,6 +58,8 @@ if (redo_calc) {
 
 AllData_ValidTrials = full_join(AllData_ValidTrials, SubBias)
 
+summary(res.prob)
+
 res.int.con = lmer(Prob ~ Cat_n_z  + Con * Pred * intSlope + (Con * Pred|Sub), AllData_ValidTrials)
 summary(res.int.con)
 
@@ -69,7 +71,7 @@ summary(res.prob.unbias)
 
 # Bias Plot
 plot.prob.bias = ggplot(BiasedData, aes(x=Cat_n,y=Prob,color = Pred)) +
-  stat_summary(fun.y=mean,geom="point",size=2) +
+  stat_summary(fun.y=mean,geom="point",size=3, alpha = 0.75) +
   stat_summary(fun.data = mean_cl_normal, geom = "errorbar",width=1,
                fun.args = list(mult = 1)) + 
   theme(legend.position="none",
@@ -90,7 +92,7 @@ plot.prob.bias = ggplot(BiasedData, aes(x=Cat_n,y=Prob,color = Pred)) +
 
 # Unbias plot
 plot.prob.unbias = ggplot(UnbiasedData, aes(x=Cat_n,y=Prob,color = Pred)) +
-  stat_summary(fun.y=mean,geom="point",size=2) +
+  stat_summary(fun.y=mean,geom="point",size=3, alpha = 0.75) +
   stat_summary(fun.data = mean_cl_normal, geom = "errorbar",width=1,
                fun.args = list(mult = 1)) + 
   theme(legend.position="none",

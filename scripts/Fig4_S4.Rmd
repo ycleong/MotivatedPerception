@@ -83,6 +83,7 @@ summary(resCondResponseRT)
 
 # Interaction effect of Condition X Want2See X Response on RT
 sum_resCondMotRT
+
 ```
 
 ### Summarize data
@@ -125,9 +126,8 @@ if (redo_calc){
 # Plot
 dataplot = 
   ggplot(subset(summRT, ((ChoiceF == "0") & (Cat_n < 60)) | ((ChoiceF == "1") & (Cat_n > 40))),
-  #ggplot(summRT,
        aes(y = meanRT, x = Cat_n, color = Want2See)) + 
-  stat_summary(fun.y=mean,geom="point", size = 3.6) +
+  stat_summary(fun.y=mean,geom="point", size = 3.6, alpha = 0.75) +
   stat_summary(fun.data = mean_cl_normal, fun.args = list(mult = 1), geom = "errorbar",width=1) +
   facet_wrap(~ ChoiceF) +
   theme(axis.text.x  = element_text(size=14,color="black"),
@@ -138,14 +138,13 @@ dataplot =
         legend.position="none") +
   ylab("RT(s)") + xlab("% Scene") +
   scale_colour_manual(values=myPalette) +
-  coord_cartesian(ylim = c(1,2.5))
+  coord_cartesian(ylim = c(0.75,2.5))
 
 
 simplot = 
   ggplot(subset(summRT_sim, ((ChoiceF == "0") & (Cat_n < 60)) | ((ChoiceF == "1") & (Cat_n > 40))),
-  #ggplot(summRT_sim,
        aes(y = meanRT, x = Cat_n, color = Want2See)) +
-  stat_summary(fun.y=mean,geom="point", size = 3.6) +
+  stat_summary(fun.y=mean,geom="point", size = 3.6, alpha = 0.75) +
   stat_summary(fun.data = mean_cl_normal, fun.args = list(mult = 1), geom = "errorbar",width=1) +
   facet_wrap(~ ChoiceF) +
       theme(axis.text.x  = element_text(size=14,color="black"),
@@ -156,7 +155,7 @@ simplot =
         legend.position="none") +
   scale_colour_manual(values=myPalette) +
   ylab("RT(s)") + xlab("% Scene") +
-  coord_cartesian(ylim = c(1,2.5))
+  coord_cartesian(ylim = c(0.75,2.5))
 
 plot_grid(dataplot, simplot, nrow = 2)
 ```
@@ -164,7 +163,7 @@ plot_grid(dataplot, simplot, nrow = 2)
 
 **Figure 4. Drift diffusion model accounts for asymmetries in reaction times. A.** Reaction times for face (left) and scene (right) responses at each % scene, separately for when participants were motivated to see faces (red) and scenes (blue).  Participants were faster to categorize an image as the category they were motivated to see. Trial types with less than 48 trials (i.e. 1% of total number of trials) were excluded from the plot because there were too few trials for reliable estimates and they tend to come from a small number of participants. For example, when % scene was high, very rarely did participants categorize an image as a face. Error bars indicate between-subject SEM. **B.** Model-predicted reaction times. Reaction times were simulated using the z & v model with parameter values sampled from the posterior distribution. 500 datasets were simulated, each with the same number of participants and trials as the original data. Reaction times were first averaged over  simulations to obtain an average reaction time for each trial type for each participant, and then averaged over participants to obtain the mean reaction time for each type. Error bars denote between-subject SEM.
 
-# Run stats
+# Break by condition
 ```{r fig.width = 8.5, fig.height = 7}
 ## Plot RT separately by condition
 summRTcon = subset(AllData, !is.na(Conf)) %>%
@@ -175,7 +174,7 @@ temp = filter(summRTcon, Con_Rev == "Coop")
 
 Coop.plot = ggplot(subset(temp, ((ChoiceF == "0") & (Cat_n < 60)) | ((ChoiceF == "1") & (Cat_n > 40))), 
        aes(y = meanRT, x = Cat_n, color = Want2See)) + 
-  stat_summary(fun.y=mean,geom="point", size = 3.6) +
+  stat_summary(fun.y=mean,geom="point", size = 3.6, alpha = 0.75) +
   stat_summary(fun.data = mean_cl_normal, fun.args = list(mult = 1), geom = "errorbar",width=1) +
   facet_wrap( ~ ChoiceF) +
   theme(axis.text.x  = element_text(size=14,color="black"),
@@ -186,13 +185,13 @@ Coop.plot = ggplot(subset(temp, ((ChoiceF == "0") & (Cat_n < 60)) | ((ChoiceF ==
         legend.position="none") +
   ylab("RT(s)") + xlab("% Scene") +
   scale_colour_manual(values=myPalette) +
-  coord_cartesian(ylim = c(1,2.5)) 
+  coord_cartesian(ylim = c(0.75,2.5)) 
 
 temp = filter(summRTcon, Con_Rev == "Comp")
 
 Comp.plot = ggplot(subset(temp, ((ChoiceF == "0") & (Cat_n < 60)) | ((ChoiceF == "1") & (Cat_n > 40))), 
        aes(y = meanRT, x = Cat_n, color = Want2See)) + 
-  stat_summary(fun.y=mean,geom="point", size = 3.6) +
+  stat_summary(fun.y=mean,geom="point", size = 3.6, alpha = 0.75) +
   stat_summary(fun.data = mean_cl_normal, fun.args = list(mult = 1), geom = "errorbar",width=1) +
   facet_wrap( ~ ChoiceF) +
   theme(axis.text.x  = element_text(size=14,color="black"),
@@ -203,7 +202,7 @@ Comp.plot = ggplot(subset(temp, ((ChoiceF == "0") & (Cat_n < 60)) | ((ChoiceF ==
         legend.position="none") +
   ylab("RT(s)") + xlab("% Scene") +
   scale_colour_manual(values=myPalette) +
-  coord_cartesian(ylim = c(1,2.5)) 
+  coord_cartesian(ylim = c(0.75,2.5))
 
 plot_grid(Coop.plot, Comp.plot, nrow = 2)
 ```

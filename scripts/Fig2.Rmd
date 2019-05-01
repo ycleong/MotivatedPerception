@@ -64,7 +64,6 @@ summary(res.coop)
 
 # Competition condition
 summary(res.comp)
-
 ```
 
 ```{r plot-behav, fig.width = 9, fig.height = 3.5, warning=F}
@@ -88,11 +87,11 @@ sub_avg = group_by(thisData,Sub,Con_Rev,Cat_n,Pred) %>%
 # Plot group average with fit
 plot.behav = ggplot() +
   stat_summary(data = sub_avg, aes(x=Cat_n,y=Avg,color = Pred),
-               fun.y=mean,geom="point",size=2.5) +
+               fun.y=mean,geom="point",size=2.5, alpha = 0.75) +
   stat_summary(data = sub_avg, aes(x=Cat_n,y=Avg,color = Pred),
                fun.data = mean_cl_normal, geom = "errorbar",width=1,
-               fun.args = list(mult = 1)) + 
-  geom_line(data = pred.data, aes(x=Cat_n,y=Choice,color= Pred),size=1) +
+               fun.args = list(mult = 1), alpha = 0.75) + 
+  geom_line(data = pred.data, aes(x=Cat_n,y=Choice,color= Pred),size=1, alpha = 0.8) +
   theme(legend.position="none",
       panel.grid.major = element_blank(), 
         panel.grid.minor = element_blank(),
@@ -163,7 +162,8 @@ plot.perform = ggplot(dPerform, aes(intSlope, avg)) +
         strip.text.x = element_text(face = "bold")) +
   xlab("Motivational Bias") +
   ylab("Earnings") +
-  coord_cartesian(ylim=c(8.9, 12.2)) 
+  coord_cartesian(ylim=c(8.9, 12.2)) +
+  scale_y_continuous(breaks = c(10,11,12))
 ```
 
 ```{r}

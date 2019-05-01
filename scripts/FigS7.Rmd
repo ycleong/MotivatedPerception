@@ -66,9 +66,8 @@ PPC_negative = PPC_timebound[PPC_timebound$p_rt < 0,]
 
 ggplot() + 
   geom_histogram(data = AllData_ValidTrials,  aes(x = RT_Rev, y = ..ncount..)) +
-  geom_line(data = PPC_timebound, stat = "density", aes(x = RT_Rev, y = ..scaled..), size = 1.5, color='steelblue', alpha = 0.6) +
+  geom_line(data = PPC_timebound, stat = "density", aes(x = RT_Rev, y = ..scaled..), size = 1.5, color='red', alpha = 0.6) +
   xlab("RT(s)") + ylab("Probability") +
-  theme(axis.text.y  = element_blank()) +
   facet_wrap(~ SubID + Want2See, nrow = 6) +
   coord_cartesian(xlim = c(-4.1, 4.1))
 ```

@@ -105,13 +105,14 @@ v_bias$medianBehav = ifelse(v_bias$HighBias, "HighBias", "LowBias")
 summary(lmer(mean ~ mot1 + scale(cat) + (mot1 + scale(cat) |Sub), data = v_bias))
 
 summary(lmer(mean ~ mot1 + intSlope*scale(cat) + (mot1 + intSlope*scale(cat) |Sub), data = v_bias))
+
 summary(lmer(mean ~mot1 + cat + (mot1 + cat |Sub), data = subset(v_bias, medianBehav == "HighBias")))
 summary(lmer(mean ~mot1 + cat + (mot1 + cat |Sub), data = subset(v_bias, medianBehav == "LowBias")))
 summary(lmer(mean ~ intSlope*mot1 + cat + (intSlope*mot1 |Sub), data = v_bias))
 
 ggplot() +
   stat_summary(data = v_bias, aes(x=cat,y=mean,color = mot1),
-               fun.y=mean,geom="point",size=2.5) +
+               fun.y=mean,geom="point",size=3, alpha = 0.70) +
   stat_summary(data = v_bias, aes(x=cat,y=mean,color = mot1),
                fun.data = mean_cl_normal, geom = "errorbar",width=1,
                fun.args = list(mult = 1)) + 

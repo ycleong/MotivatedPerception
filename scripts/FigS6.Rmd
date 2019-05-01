@@ -159,7 +159,7 @@ if (redo_calc){
 
 ```{r fig.height = 5, fig.width = 8}
 bottom_plot = ggplot(subset(CRF,Cat_n > 30 & Cat_n < 70), aes(x = Q, y = p_scene, color = Want2See)) +
-  geom_point() +
+  geom_point(alpha = 0.75) +
   geom_errorbar(aes(ymin= p_scene - SE, ymax = p_scene + SE), width=.2) +
   scale_colour_manual(values=myPalette) +
   facet_grid(type ~ Cat_n) +
@@ -174,7 +174,7 @@ bottom_plot = ggplot(subset(CRF,Cat_n > 30 & Cat_n < 70), aes(x = Q, y = p_scene
 
 ```{r fig.height = 3, fig.width = 8}
 top_plot = ggplot(CRF_combined, aes(x = Q, y = p_scene, color = Want2See)) +
-  geom_point() +
+  geom_point(alpha = 0.75) +
   geom_errorbar(aes(ymin=p_scene - SE, ymax = p_scene + SE), width=.2) +
   scale_colour_manual(values=myPalette) +
   facet_grid(~type) +
@@ -183,7 +183,8 @@ top_plot = ggplot(CRF_combined, aes(x = Q, y = p_scene, color = Want2See)) +
         axis.text.y  = element_text(size=10),
         axis.title.x = element_text(size=12),
         axis.title.y = element_text(size=12),
-        strip.background = element_blank())
+        strip.background = element_blank()) +
+  coord_cartesian(ylim = c(0.4, 0.7))
 ```
 
 ```{r fig.width=8, fig.height=7.5}

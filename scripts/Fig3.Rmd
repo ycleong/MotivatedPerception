@@ -30,7 +30,6 @@ cor.test(full.model.subj_parm$z,full.model.subj_parm$drift_bias)
 rb_lm = rlm(drift_bias ~ z, data = full.model.subj_parm)
 summary(rb_lm)
 f.robftest(rb_lm , var = "z")
-
 ```
 
 ### Plot trace
@@ -73,9 +72,9 @@ plot.z_diff =
         strip.text.x = element_text(face = "bold", size = 15),
         plot.title = element_text(hjust = 0.5,face = "bold", size = (15))) +
   xlab("z_bias") + ylab("Density") +
-  coord_cartesian(ylim=c(0, 1.1)) +
+  coord_cartesian(ylim=c(0, 1.1), xlim = c(-0.05, 0.25)) +
   scale_y_continuous(breaks=seq(0,1,0.25)) +
-  scale_x_continuous(breaks=c(0, 0.1, 0.1))
+  scale_x_continuous(breaks=c(0, 0.2, 0.1))
 
 # Shade area
 plot_data <- as.data.frame(ggplot_build(plot.z_diff)$data[2])
@@ -109,8 +108,9 @@ plot.v_diff =
         strip.text.x = element_text(face = "bold", size = 15),
         plot.title = element_text(hjust = 0.5,face = "bold", size = (15))) +
   xlab("v_bias") + ylab("Density") +
-  coord_cartesian(ylim=c(0, 1.1)) +
-  scale_y_continuous(breaks=seq(0,1,0.25))
+  coord_cartesian(ylim=c(0, 1.1), xlim = c(-0.05, 0.25)) +
+  scale_y_continuous(breaks=seq(0,1,0.25)) +
+  scale_x_continuous(breaks=c(0, 0.2, 0.1))
 
 # Shade area
 plot_data <- as.data.frame(ggplot_build(plot.v_diff)$data[2])
@@ -136,7 +136,7 @@ model.DIC$Model = factor(model.DIC$Model, levels = c('z & v','z','v','null'))
 
 DIC.fig = ggplot(model.DIC, aes(x = Model, y = DIC)) + 
   geom_bar(stat = "identity",width = 0.3) +
-  coord_cartesian(ylim=c(12500, 12750)) +
+  coord_cartesian(ylim=c(12450, 12750)) +
     theme(axis.text.x  = element_text(size=13,color="black"),
         axis.text.y  = element_text(size=13,color="black"),
         axis.title.x = element_text(size=15),

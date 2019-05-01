@@ -38,7 +38,7 @@ res.prob = lmer(Prob ~ Cat_n_z  + Con * Pred + (Con * Pred |Sub), AllData_ValidT
 summary(res.prob)
 
 ggplot(AllData_ValidTrials, aes(x=Cat_n,y=Prob,color = Pred)) +
-  stat_summary(fun.y=mean,geom="point",size=2) +
+  stat_summary(fun.y=mean,geom="point",size=3, alpha =0.75) +
   stat_summary(fun.data = mean_cl_normal, geom = "errorbar",width=1,
                fun.args = list(mult = 1)) + 
   theme(legend.position="none",
