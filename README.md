@@ -2,7 +2,7 @@
 output: html_document
 ---
 ## Neurocomputational mechanisms underlying motivated seeing 
-The online supplement for our paper <i> Neurocomputational mechanisms underlying motivated seeing </i> is hosted on GitHub at [https://github.com/ycleong/MotivatedPerception](https://github.com/ycleong/MotivatedPerception). In service of other researchers who would like to reproduce our work or are interested in applying the same models in their own work, we have made our data and code available. If you have any questions, or find any bugs (or broken links), please email me at ycleong@stanford.edu. A copy of a preprint is available here: https://www.biorxiv.org/content/early/2018/07/11/364836
+The online supplement for our paper <i> Neurocomputational mechanisms underlying motivated seeing </i> is hosted on GitHub at [https://github.com/ycleong/MotivatedPerception](https://github.com/ycleong/MotivatedPerception). In service of other researchers who would like to reproduce our work or are interested in applying the same models in their own work, we have made our data and code available. If you have any questions, or find any bugs (or broken links), please email me at ycleong@berkeley.edu. A copy of a preprint is available here: https://www.biorxiv.org/content/early/2018/07/11/364836
 
 ### Data
 Data from the fMRI sample and in-lab replication that can be downloaded as csv files here:  
