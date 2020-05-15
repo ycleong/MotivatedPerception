@@ -11,7 +11,7 @@ Data from the fMRI sample and in-lab replication that can be downloaded as csv f
 
 [Neurovault Collection](https://neurovault.org/collections/EAAXGDRJ/)
   
-### Analaysis Code
+### Analysis Code
 * [Motivation biases visual categorization](scripts/Fig2.Rmd) and [Inlab-Replication](scripts/FigS2.Rmd)   
 * Drift Diffusion Model: [HDDM fitting](scripts/HDDM.ipynb), [Individual Fits](scripts/FigS7.Rmd), [Conditional Response Functions](scripts/FigS6.Rmd) and [Results Summary](scripts/Fig3.Rmd)  
 * [NAcc activity is associated with response bias](scripts/Fig6.Rmd)   
